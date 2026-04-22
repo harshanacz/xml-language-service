@@ -1,6 +1,6 @@
 # xml-language-service
 
-A fast, fault-tolerant XML language service built as a pure TypeScript npm package. Designed as the foundation layer for the WSO2 Micro Integrator Language Server.
+A fast, fault-tolerant XML language service built as a pure TypeScript npm package. Provides core XML editing features like completion, hover, symbols, folding, formatting, rename, definition and references. Designed to be editor-agnostic and easily integrated into any XML tooling ecosystem.
 
 ---
 
@@ -21,15 +21,6 @@ A fast, fault-tolerant XML language service built as a pure TypeScript npm packa
 
 ## Architecture
 
-```text
-XML Language Service (this package)
-         ↓
-XML Language Server (LSP wrapper)     ← Phase 03
-         ↓
-      MI Layer                        ← Phase 04
-```
-
-Internally built in layers — each phase extends, never rewrites:
 
 ```text
 TextDocument
@@ -73,41 +64,6 @@ src/
 
 ---
 
-## Usage
-
-```typescript
-import { getLanguageService } from 'xml-language-service'
-
-const service = getLanguageService()
-const document = service.parseXMLDocument('file:///test.xml', xmlText)
-
-// hover
-const hover = service.doHover(document, { line: 1, character: 3 })
-
-// completion
-const completions = service.doComplete(document, { line: 1, character: 3 })
-
-// symbols
-const symbols = service.findDocumentSymbols(document)
-```
-
-### XSD Validation
-
-```typescript
-const service = getLanguageService()
-
-await service.registerSchema({ uri: 'my-schema', xsdText: xsdContent })
-
-const document = service.parseXMLDocument('file:///test.xml', xmlText)
-const diagnostics = await service.validate('my-schema', document)
-
-// diagnostics: Array<{ message, severity, source, range }>
-
-service.dispose() // release WASM memory
-```
-
----
-
 ## Development
 
 ```bash
@@ -131,4 +87,4 @@ npm test            # watch mode tests
 
 ---
 
-*Current version: 2.0.0*
+*Current version: 1.0.0*

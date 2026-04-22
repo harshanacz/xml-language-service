@@ -1,4 +1,4 @@
-import { XMLNode, XMLAttribute, XMLDocument } from "./xmlNode";
+import { XMLNode, XMLAttribute, XMLDocument } from "./xmlNode.js";
 
 export class XMLDocumentImpl implements XMLDocument {
   type: "root" = "root";

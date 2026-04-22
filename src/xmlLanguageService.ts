@@ -1,5 +1,5 @@
-import { parseXMLDocument } from "./parser/xmlParser";
-import { XMLDocument } from "./parser/xmlNode";
+import { parseXMLDocument } from "./parser/xmlParser.js";
+import { XMLDocument } from "./parser/xmlNode.js";
 
 export function getLanguageService() {
   return {

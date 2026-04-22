@@ -1,2 +1,2 @@
-export { getLanguageService } from "./xmlLanguageService";
-export { XMLDocument, XMLNode, XMLAttribute } from "./parser/xmlNode";
+export { getLanguageService } from "./xmlLanguageService.js";
+export { XMLDocument, XMLNode, XMLAttribute } from "./parser/xmlNode.js";

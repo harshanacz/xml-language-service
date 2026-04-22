@@ -25,4 +25,6 @@ export interface XMLDocument extends XMLNode {
   type: "root";
   uri: string;
   text: string;
+  findNodeAt(offset: number): XMLNode;
+  traverse(callback: (node: XMLNode) => void): void;
 }

@@ -1,0 +1,21 @@
+{
+  "name": "xml-language-service",
+  "version": "1.0.0",
+  "description": "language service for xml",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@xml-tools/parser": "^1.0.11"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

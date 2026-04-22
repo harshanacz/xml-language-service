@@ -25,33 +25,45 @@ export class XMLDocumentImpl implements XMLDocument {
   }
 
   private buildNode(element: any, parent: XMLNode): XMLNode {
+    // Chevrotain CST: tag name is in children.Name[0].image, positions in .location
+    const nameToken = element?.children?.Name?.[0];
+    const isSelfClosing = !element?.children?.SLASH_OPEN?.length;
+
     const node: XMLNode = {
       type: "element",
-      name: element?.name ?? undefined,
-      attributes: this.buildAttributes(element?.attributes ?? []),
+      name: nameToken?.image ?? undefined,
+      attributes: this.buildAttributes(element?.children?.attribute ?? []),
       children: [],
-      startOffset: element?.position?.startOffset ?? 0,
-      endOffset: element?.position?.endOffset ?? 0,
+      startOffset: element?.location?.startOffset ?? 0,
+      endOffset: (element?.location?.endOffset ?? 0) + 1,
       parent,
-      isSelfClosing: !element?.syntax?.closeBody,
+      isSelfClosing,
     };
 
-    node.children = (element?.subElements ?? []).map((child: any) =>
-      this.buildNode(child, node)
-    );
+    // Child elements are nested inside content[0].children.element[]
+    const contentElements = element?.children?.content?.[0]?.children?.element ?? [];
+    node.children = contentElements.map((child: any) => this.buildNode(child, node));
 
     return node;
   }
 
   private buildAttributes(attrs: any[]): XMLAttribute[] {
-    return attrs.map((attr: any) => ({
-      name: attr?.key ?? "",
-      value: attr?.value ?? undefined,
-      nameStart: attr?.syntax?.key?.startOffset ?? 0,
-      nameEnd: attr?.syntax?.key?.endOffset ?? 0,
-      valueStart: attr?.value != null ? attr?.syntax?.value?.startOffset : undefined,
-      valueEnd: attr?.value != null ? attr?.syntax?.value?.endOffset : undefined,
-    }));
+    return attrs.map((attr: any) => {
+      const nameToken = attr?.children?.Name?.[0];
+      const valueToken = attr?.children?.STRING?.[0];
+      // STRING image includes surrounding quotes, e.g. '"test"'
+      const rawValue: string | undefined = valueToken?.image;
+      const value = rawValue != null ? rawValue.slice(1, -1) : undefined;
+
+      return {
+        name: nameToken?.image ?? "",
+        value,
+        nameStart: nameToken?.startOffset ?? 0,
+        nameEnd: (nameToken?.endOffset ?? 0) + 1,
+        valueStart: valueToken != null ? valueToken.startOffset + 1 : undefined,
+        valueEnd: valueToken != null ? valueToken.endOffset - 1 : undefined,
+      };
+    });
   }
 
   findNodeAt(offset: number): XMLNode {

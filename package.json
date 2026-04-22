@@ -6,16 +6,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "build": "tsc",
+  "build:watch": "tsc --watch",
+  "test": "vitest",
+  "test:run": "vitest run"
+},
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@xml-tools/parser": "^1.0.11"
   },
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   }
 }

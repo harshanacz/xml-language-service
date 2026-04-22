@@ -78,13 +78,5 @@ npm test            # watch mode tests
 
 ---
 
-## Roadmap
-
-- [x] Phase 01 — XML Core
-- [x] Phase 02 — XSD Schema Validation
-- [ ] Phase 03 — LSP Wrapper (Node + Browser)
-- [ ] Phase 04 — MI Layer (WSO2 Micro Integrator)
-
----
 
 *Current version: 1.0.0*

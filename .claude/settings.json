@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npx vitest *)",
+      "Bash(npm test *)",
+      "Bash(node --input-type=module)",
+      "Bash(npm run *)"
+    ]
+  }
+}

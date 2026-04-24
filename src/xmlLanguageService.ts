@@ -9,7 +9,7 @@ import { format, TextEdit, FormatterOptions } from "./services/xmlFormatter.js";
 import { doRename } from "./services/xmlRename.js";
 import { doDefinition, DefinitionResult } from "./services/xmlDefinition.js";
 import { findReferences, ReferenceResult } from "./services/xmlReferences.js";
-import { SchemaProvider, SchemaInfo } from "./schema/schemaProvider.js";
+import { SchemaProvider, SchemaInfo, SchemaAssociation, ResolvedSchema } from "./schema/schemaProvider.js";
 import { Diagnostic } from "./schema/xsdValidator.js";
 
 export function getLanguageService() {
@@ -22,12 +22,16 @@ export function getLanguageService() {
       return parseXMLDocument(uri, text);
     },
 
-    doComplete(document: XMLDocument, position: Position): CompletionList {
-      return doComplete(document, position);
+    doComplete(document: XMLDocument, position: Position, fileName?: string): CompletionList {
+      const xmlns = (document as any).getNamespace?.() ?? undefined;
+      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns);
+      return doComplete(document, position, completionProvider);
     },
 
-    doHover(document: XMLDocument, position: Position): HoverResult | null {
-      return doHover(document, position);
+    doHover(document: XMLDocument, position: Position, fileName?: string): HoverResult | null {
+      const xmlns = (document as any).getNamespace?.() ?? undefined;
+      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns);
+      return doHover(document, position, completionProvider);
     },
 
     findDocumentSymbols(document: XMLDocument): DocumentSymbol[] {
@@ -66,6 +70,16 @@ export function getLanguageService() {
 
     hasSchema(uri: string): boolean {
       return schemaProvider.hasSchema(uri);
+    },
+
+    /** Returns the raw schema (xsdText + source) matched to the given file name and xmlns, or null if none found. */
+    resolveSchemaForDocument(fileName: string, xmlns?: string): ResolvedSchema | null {
+      return schemaProvider.findSchemaForDocument(fileName, xmlns);
+    },
+
+    /** Registers a custom file-to-schema mapping, taking priority over built-in associations. */
+    addUserAssociation(association: SchemaAssociation): void {
+      schemaProvider.addUserAssociation(association);
     },
 
     dispose(): void {

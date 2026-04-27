@@ -9,7 +9,7 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- Prism syntax highlighting -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-one-dark.min.css" />
@@ -140,32 +140,32 @@
 
     <div class="features-grid" style="margin-top:40px">
       <div class="feature-card">
-        <span class="feature-icon">⚡</span>
+        <svg class="feature-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
         <h3>Auto Completion</h3>
         <p>Context-aware suggestions for elements, attributes, and closing tags.</p>
       </div>
       <div class="feature-card">
-        <span class="feature-icon">🔍</span>
+        <svg class="feature-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <h3>Hover Info</h3>
         <p>Rich Markdown hover content showing element structure and attributes.</p>
       </div>
       <div class="feature-card">
-        <span class="feature-icon">📋</span>
+        <svg class="feature-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
         <h3>Document Symbols</h3>
         <p>Full hierarchical outline of the XML document, ready for an editor tree view.</p>
       </div>
       <div class="feature-card">
-        <span class="feature-icon">✏️</span>
+        <svg class="feature-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         <h3>Rename</h3>
         <p>Rename both opening and closing tags atomically with a single call.</p>
       </div>
       <div class="feature-card">
-        <span class="feature-icon">🎯</span>
+        <svg class="feature-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
         <h3>Go to Definition</h3>
         <p>Jump between matching open/close tag pairs instantly.</p>
       </div>
       <div class="feature-card">
-        <span class="feature-icon">🛡️</span>
+        <svg class="feature-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
         <h3>XSD Validation</h3>
         <p>Full XSD schema validation via libxml2 compiled to WebAssembly.</p>
       </div>
@@ -189,7 +189,7 @@ pnpm add xml-language-service</code></pre>
     </div>
 
     <div class="callout callout-info">
-      <span class="callout-icon">ℹ️</span>
+      <svg class="callout-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
       <p>Requires <strong>Node.js 16+</strong>. The <code>libxml2-wasm</code> peer dependency is bundled automatically.</p>
     </div>
 
@@ -280,7 +280,7 @@ ls.dispose();</code></pre>
     </div>
 
     <div class="callout callout-warn">
-      <span class="callout-icon">⚠️</span>
+      <svg class="callout-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
       <p>Always call <code>ls.dispose()</code> when you no longer need the service. This frees the <code>libxml2-wasm</code> WASM memory held by the schema registry.</p>
     </div>
   </section>

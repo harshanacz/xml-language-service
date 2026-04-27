@@ -1,4 +1,5 @@
 import { XMLDocument } from "../parser/xmlNode.js";
+type XMLElementNode = XMLDocument["children"][number];
 
 /** Options controlling how the formatter re-indents the document. */
 export interface FormatterOptions {
@@ -39,14 +40,14 @@ export function format(document: XMLDocument, options?: FormatterOptions): TextE
   return [{ startOffset: 0, endOffset: document.text.length, newText: output.join("\n") }];
 }
 
-function formatElement(node: XMLDocument["children"][number], text: string, depth: number, unit: string, output: string[]): void {
+function formatElement(node: XMLElementNode, text: string, depth: number, unit: string, output: string[]): void {
   const indent = unit.repeat(depth);
   output.push(indent + buildOpeningTag(node));
 
   if (node.isSelfClosing) return;
 
   const startTagEnd = findTagEnd(text, node.startOffset);
-  const endTagStart = findEndTagStart(text, node.endOffset);
+  const endTagStart = findClosingTagStart(text, node);
 
   const children = [...node.children].sort((a, b) => a.startOffset - b.startOffset);
   let cursor = startTagEnd + 1;
@@ -61,7 +62,7 @@ function formatElement(node: XMLDocument["children"][number], text: string, dept
   output.push(`${indent}</${node.name}>`);
 }
 
-function buildOpeningTag(node: XMLDocument["children"][number]): string {
+function buildOpeningTag(node: XMLElementNode): string {
   const attrs = node.attributes
     .map((attr) => (attr.value === undefined ? attr.name : `${attr.name}="${attr.value}"`))
     .join(" ");
@@ -71,20 +72,46 @@ function buildOpeningTag(node: XMLDocument["children"][number]): string {
 }
 
 function findTagEnd(text: string, startOffset: number): number {
-  let inQuote = false;
+  let quoteChar: '"' | "'" | null = null;
 
   for (let i = startOffset; i < text.length; i++) {
     const ch = text[i];
-    if (ch === '"') inQuote = !inQuote;
-    if (!inQuote && ch === ">") return i;
+
+    if (quoteChar === null && (ch === '"' || ch === "'")) {
+      quoteChar = ch;
+      continue;
+    }
+
+    if (quoteChar !== null && ch === quoteChar && !isEscaped(text, i)) {
+      quoteChar = null;
+      continue;
+    }
+
+    if (quoteChar === null && ch === ">") return i;
   }
 
   return text.length - 1;
 }
 
-function findEndTagStart(text: string, endOffset: number): number {
-  const index = text.lastIndexOf("</", Math.max(0, endOffset - 1));
-  return index >= 0 ? index : endOffset;
+function findClosingTagStart(text: string, node: XMLElementNode): number {
+  const closeTag = `</${node.name}>`;
+  const expectedStart = node.endOffset - closeTag.length;
+
+  if (expectedStart >= 0 && text.slice(expectedStart, node.endOffset) === closeTag) {
+    return expectedStart;
+  }
+
+  const index = text.lastIndexOf(closeTag);
+  if (index >= node.startOffset && index <= expectedStart) return index;
+  return node.endOffset;
+}
+
+function isEscaped(text: string, index: number): boolean {
+  let backslashCount = 0;
+  for (let i = index - 1; i >= 0 && text[i] === "\\"; i--) {
+    backslashCount++;
+  }
+  return backslashCount % 2 === 1;
 }
 
 function appendLooseContent(segment: string, depth: number, unit: string, output: string[]): void {

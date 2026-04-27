@@ -65,7 +65,7 @@ describe("format", () => {
     );
   });
 
-  it("keeps attributes attached to their parent tag when source attributes were multi-line", () => {
+  it("formats multi-line attributes as a single-line opening tag", () => {
     const xml = '<endpoint\n  name="myEndpoint"\n  timeout="3000"\n><child/></endpoint>';
     const doc = parseXMLDocument("file:///test.xml", xml);
     const [edit] = format(doc, { tabSize: 2, insertSpaces: true });

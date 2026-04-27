@@ -7,7 +7,7 @@ export interface Diagnostic {
   range: Range;
   message: string;
   severity: "error" | "warning" | "info";
-  source: "xsd";
+  source: "xsd" | "syntax";
 }
 
 /** Wraps a compiled XSD schema and validates XML documents against it. */

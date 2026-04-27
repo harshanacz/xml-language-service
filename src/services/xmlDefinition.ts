@@ -27,12 +27,14 @@ export function doDefinition(
   const isOnOpenTag = offset <= openTagEnd;
 
   if (isOnOpenTag) {
-    const closePattern = "</" + node.name;
-    const closeIdx = document.text.indexOf(closePattern, node.startOffset + 1);
-    if (closeIdx === -1) return null;
+    if (node.endTagStartOffset == null) return null;
     return {
       uri: document.uri,
-      range: offsetsToRange(document.text, closeIdx, closeIdx + closePattern.length + 1),
+      range: offsetsToRange(
+        document.text,
+        node.endTagStartOffset,
+        node.endTagStartOffset + node.name.length + 3
+      ),
     };
   }
 

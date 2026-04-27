@@ -584,7 +584,7 @@ const def = ls.doDefinition(doc, { line: 0, character: 1 });
   <!-- findReferences -->
   <section class="doc-section" data-section="api-references">
     <h2>findReferences()</h2>
-    <p class="section-intro">Finds all elements in the document that share the same tag name as the element under the cursor.</p>
+    <p class="section-intro">Finds matching elements by tag name, and when available, narrows matches using identifying attributes such as <code>name</code>, <code>id</code>, <code>key</code>, or <code>ref</code>.</p>
 
     <div class="method-block">
       <div class="method-header">
@@ -601,7 +601,7 @@ const def = ls.doDefinition(doc, { line: 0, character: 1 });
           </tbody>
         </table>
         <div class="returns-label">Returns</div>
-        <p>Array of <code>ReferenceResult</code> — one entry per element that shares the same tag name, including the cursor element itself. Returns <code>[]</code> if not on a named element.</p>
+        <p>Array of <code>ReferenceResult</code> — one entry per matching element. Matching uses tag name, and also identifying attribute name/value pairs when present on the cursor element. Returns <code>[]</code> if not on a named element.</p>
         <div class="code-wrap">
           <div class="code-label"><span class="lang">typescript</span></div>
           <pre class="language-typescript"><code>const refs = ls.findReferences(doc, { line: 1, character: 3 });

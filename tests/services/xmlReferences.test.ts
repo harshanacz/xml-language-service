@@ -43,4 +43,21 @@ describe("findReferences", () => {
     const results = findReferences(emptyDoc, { line: 0, character: 0 });
     expect(results).toHaveLength(0);
   });
+
+  it("filters references by identifying attribute value when present", () => {
+    const xmlWithNames =
+      '<root><sequence name="A"/><sequence name="B"/><sequence name="A"/></root>';
+    const namedDoc = parseXMLDocument(uri, xmlWithNames);
+    // inside first <sequence name="A"/>
+    const results = findReferences(namedDoc, { line: 0, character: 8 });
+    expect(results).toHaveLength(2);
+  });
+
+  it("falls back to tag-only matching when identifying attributes are missing", () => {
+    const xmlWithoutIdentifiers = "<root><sequence/><sequence/></root>";
+    const plainDoc = parseXMLDocument(uri, xmlWithoutIdentifiers);
+    // inside first <sequence/>
+    const results = findReferences(plainDoc, { line: 0, character: 8 });
+    expect(results).toHaveLength(2);
+  });
 });

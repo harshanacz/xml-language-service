@@ -26,9 +26,7 @@ describe("format", () => {
     const unindented = "<root>\n<child>\ntext\n</child>\n</root>";
     const doc = parseXMLDocument("file:///test.xml", unindented);
     const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
-    expect(edit.newText).toContain("  <child>");
-    expect(edit.newText).toContain("    text");
-    expect(edit.newText).toContain("  </child>");
+    expect(edit.newText).toBe("<root>\n  <child>\n    text\n  </child>\n</root>");
   });
 
   it("self-closing tags do not increase the indent level", () => {
@@ -47,10 +45,7 @@ describe("format", () => {
     const unindented = "<root>\n<child>\ntext\n</child>\n</root>";
     const doc = parseXMLDocument("file:///test.xml", unindented);
     const [edit] = format(doc);
-    expect(edit.newText).toContain("<root>");
-    expect(edit.newText).toContain("</root>");
-    // Indentation characters are present
-    expect(edit.newText).toMatch(/^\s*</m);
+    expect(edit.newText).toBe("<root>\n  <child>\n    text\n  </child>\n</root>");
   });
 
   it("tab indentation is used when insertSpaces is false", () => {
@@ -58,5 +53,31 @@ describe("format", () => {
     const doc = parseXMLDocument("file:///test.xml", xml);
     const [edit] = format(doc, { tabSize: 4, insertSpaces: false });
     expect(edit.newText).toContain("\t<child/>");
+  });
+
+  it("formats one-liner nested tags using AST depth", () => {
+    const xml = "<person><name><first>John</first></name></person>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+
+    expect(edit.newText).toBe(
+      "<person>\n  <name>\n    <first>\n      John\n    </first>\n  </name>\n</person>",
+    );
+  });
+
+  it("keeps attributes attached to their parent tag when source attributes were multi-line", () => {
+    const xml = '<endpoint\n  name="myEndpoint"\n  timeout="3000"\n><child/></endpoint>';
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+
+    expect(edit.newText).toBe('<endpoint name="myEndpoint" timeout="3000">\n  <child/>\n</endpoint>');
+  });
+
+  it("formats mixed content without breaking nested elements", () => {
+    const xml = "<p>start<b>bold</b>end</p>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+
+    expect(edit.newText).toBe("<p>\n  start\n  <b>\n    bold\n  </b>\n  end\n</p>");
   });
 });

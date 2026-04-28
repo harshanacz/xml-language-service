@@ -71,18 +71,6 @@ export class SchemaProvider {
    * Returns a warning diagnostic when no matching schema is found.
    */
   async validate(schemaUri: string, document: XMLDocument): Promise<Diagnostic[]> {
-    if (document.syntaxErrors.length > 0) {
-      return document.syntaxErrors.map((e) => ({
-        message: e.message,
-        severity: "error" as const,
-        source: "syntax" as const,
-        range: {
-          start: { line: e.line, character: e.character },
-          end: { line: e.line, character: e.character },
-        },
-      }));
-    }
-
     const validator = this.schemas.get(schemaUri);
     if (!validator) {
       return [
@@ -94,6 +82,8 @@ export class SchemaProvider {
         },
       ];
     }
+    // Xerces runs syntax parsing + XSD validation in one pass, so both
+    // syntax errors and schema errors are returned even on malformed XML.
     return validator.validate(document.text);
   }
 

@@ -14,8 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@xml-tools/parser": "^1.0.11",
-    "libxml2-wasm": "^0.7.1"
+    "@xml-tools/parser": "^1.0.11"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

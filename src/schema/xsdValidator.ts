@@ -1,8 +1,7 @@
-import { XmlDocument, XsdValidator, XmlValidateError } from "libxml2-wasm";
-import { Position } from "../utils/positionUtils.js";
 import { Range } from "../utils/rangeUtils.js";
+import { Position } from "../utils/positionUtils.js";
 
-/** A validation diagnostic produced by XSD schema validation. */
+/** A validation diagnostic used throughout the language service. */
 export interface Diagnostic {
   range: Range;
   message: string;
@@ -10,73 +9,81 @@ export interface Diagnostic {
   source: "xsd" | "syntax";
 }
 
-/** Wraps a compiled XSD schema and validates XML documents against it. */
+interface XercesDiagnostic {
+  message: string;
+  line: number;
+  column: number;
+  severity: "warning" | "error" | "fatal";
+}
+
+interface ValidationResult {
+  valid: boolean;
+  parseErrors: XercesDiagnostic[];
+  schemaErrors: XercesDiagnostic[];
+}
+
+let _mod: any = null;
+async function getModule(): Promise<any> {
+  if (!_mod) {
+    // @ts-ignore — xerces_validator.js is the Emscripten-generated WASM glue; place it in src/wasm/
+    const { default: XercesModule } = await import("../wasm/xerces_validator.js");
+    _mod = await XercesModule();
+  }
+  return _mod;
+}
+
+function toRange(line: number, column: number): Range {
+  const l = line > 0 ? line - 1 : 0;
+  const c = column > 0 ? column - 1 : 0;
+  const pos: Position = { line: l, character: c };
+  return { start: pos, end: pos };
+}
+
+/** Wraps the Xerces WASM validator — handles both syntax and XSD validation in one pass. */
 export class XsdValidatorService {
   private xsdText: string;
-  private _xsdDoc: XmlDocument | null = null;
-  private _validator: XsdValidator | null = null;
 
   private constructor(xsdText: string) {
     this.xsdText = xsdText;
   }
 
-  /**
-   * Parses the XSD and compiles the validator. Use this instead of the constructor
-   * to allow async error propagation during XSD parsing.
-   */
   static async create(xsdText: string): Promise<XsdValidatorService> {
-    const service = new XsdValidatorService(xsdText);
-    service._xsdDoc = XmlDocument.fromString(xsdText);
-    service._validator = XsdValidator.fromDoc(service._xsdDoc);
-    return service;
+    await getModule();
+    return new XsdValidatorService(xsdText);
   }
 
   /**
-   * Validates the given XML text against the compiled XSD schema.
-   * Returns an empty array when the document is valid.
-   * Never throws — all errors are captured as Diagnostic objects.
+   * Validates xmlText against the compiled XSD schema.
+   * Xerces runs syntax parsing and schema validation in a single pass, so both
+   * syntax errors and schema errors are returned together even on malformed XML.
    */
   async validate(xmlText: string): Promise<Diagnostic[]> {
-    let xmlDoc: XmlDocument | null = null;
-    try {
-      xmlDoc = XmlDocument.fromString(xmlText);
-      this._validator!.validate(xmlDoc);
-      return [];
-    } catch (err) {
-      if (err instanceof XmlValidateError) {
-        return err.details.map((d) => ({
-          message: d.message.trim(),
-          severity: "error" as const,
-          source: "xsd" as const,
-          range: lineToRange(d.line),
-        }));
-      }
-      const msg = err instanceof Error ? err.message : String(err);
-      return [
-        {
-          message: "Validation failed: " + msg,
-          severity: "error" as const,
-          source: "xsd" as const,
-          range: lineToRange(0),
-        },
-      ];
-    } finally {
-      xmlDoc?.dispose();
+    const mod = await getModule();
+    const result: ValidationResult = await mod.validate(xmlText, this.xsdText);
+    const diagnostics: Diagnostic[] = [];
+
+    for (const d of result.parseErrors) {
+      diagnostics.push({
+        message: d.message,
+        severity: "error",
+        source: "syntax",
+        range: toRange(d.line, d.column),
+      });
     }
+
+    for (const d of result.schemaErrors) {
+      diagnostics.push({
+        message: d.message,
+        severity: d.severity === "warning" ? "warning" : "error",
+        source: "xsd",
+        range: toRange(d.line, d.column),
+      });
+    }
+
+    return diagnostics;
   }
 
-  /** Releases the compiled XSD document and validator from WASM memory. */
   dispose(): void {
-    this._validator?.dispose();
-    this._xsdDoc?.dispose();
-    this._validator = null;
-    this._xsdDoc = null;
+    // WASM module is shared — nothing to release per instance
   }
-}
-
-// libxml2 reports 1-based line numbers; convert to 0-based LSP positions.
-function lineToRange(line: number): Range {
-  const lineIndex = line > 0 ? line - 1 : 0;
-  const pos: Position = { line: lineIndex, character: 0 };
-  return { start: pos, end: pos };
 }

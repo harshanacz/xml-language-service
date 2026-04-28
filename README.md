@@ -1,5 +1,5 @@
 # xml-language-service
-## Pure TypeScript (No java dependencies)
+## Pure TypeScript (No Java dependencies)
 
 A fast, fault-tolerant XML language service built as a pure TypeScript npm package. Provides core XML editing features like completion, hover, symbols, folding, formatting, rename, definition and references. Designed to be editor-agnostic and easily integrated into any XML tooling ecosystem.
 
@@ -16,7 +16,7 @@ A fast, fault-tolerant XML language service built as a pure TypeScript npm packa
 - **Rename** — safely rename open + close tag pairs
 - **Definition** — jump to matching open/close tag
 - **References** — find all elements with the same tag name
-- **XSD Validation** — schema-aware validation via `libxml2-wasm`, runs on debounce after typing stops
+- **XSD Validation** — schema-aware validation via Apache Xerces-C++ compiled to WebAssembly; reports both syntax errors and schema violations in a single pass, even on malformed XML
 
 ---
 
@@ -80,21 +80,37 @@ Provides atomic renaming of element tags.
 - Synchronizes both open and close tags atomically.
 - Properly handles self-closing tags.
 
-## 8. Definition
+### 8. Definition
 Allows jumping between matching tags:
 - Placing the cursor on `<root>` jumps to `</root>`.
 - Placing the cursor on `</root>` jumps to `<root>`.
 
-## 9. References
+### 9. References
 Finds all usages of the same element name:
 - Placing the cursor on `<item>` finds ALL `<item>` tags in the file.
 - Returns a list of all locations.
 
 ### 10. XSD Validation
-Validates XML against any provided XSD.
-- Powered by `libxml2-wasm`.
-- Returns `Diagnostic[]` with errors and warnings.
-- Includes precise line numbers and descriptive messages.
+
+Validates XML against any provided XSD using **Apache Xerces-C++ compiled to WebAssembly**.
+
+Xerces re-parses the raw XML text directly in a single SAX streaming pass with schema validation enabled. This means both syntax errors and schema violations are reported together, even on malformed or incomplete documents.
+
+**Validation behaviour by scenario:**
+
+| Scenario | `parseErrors` | `schemaErrors` |
+|---|---|---|
+| Valid XML | `[]` | `[]` |
+| Schema violations | `[]` | all violations |
+| Syntax error | fatal error | `[]` |
+| Schema error before syntax error | fatal error | errors up to crash point |
+
+- `parseErrors` → reported with `source: "syntax"`
+- `schemaErrors` → reported with `source: "xsd"`
+- Xerces stops at the first fatal syntax error — anything after that point is not reached
+
+**Why Xerces instead of libxml2-wasm:**
+`libxml2-wasm` exposes only a DOM parse path — it must fully parse the document before validation can run, so malformed XML produces no schema errors at all. Xerces uses a SAX streaming approach that validates as it parses, matching the behaviour of the WSO2 MI Language Server.
 
 ### 11. Schema-Aware Features
 Automatically detects XSDs based on:
@@ -114,7 +130,6 @@ Users can also register custom XSDs.
 
 ## Architecture
 
-
 ```text
 TextDocument
     ↓
@@ -124,7 +139,7 @@ XMLDocument (normalized AST)
     ↓
 Feature Services + SchemaProvider
     ↓
-libxml2-wasm (XSD validation)
+Xerces-C++ WASM (XSD validation — syntax + schema in one pass)
 ```
 
 ---
@@ -149,7 +164,10 @@ src/
 │   └── xmlReferences.ts
 ├── schema/
 │   ├── schemaProvider.ts   ← schema registry + validator orchestration
-│   └── xsdValidator.ts     ← libxml2-wasm XSD validation engine
+│   └── xsdValidator.ts     ← Xerces WASM validation engine
+├── wasm/
+│   ├── xerces_validator.js ← Emscripten-generated JS glue
+│   └── xerces_validator.wasm
 └── utils/
     ├── positionUtils.ts
     └── rangeUtils.ts
@@ -167,9 +185,8 @@ npm run test:run    # run all tests once
 npm test            # watch mode tests
 ```
 
-**111 tests — 12 test files**
+**112 tests — 12 test files**
 
 ---
-
 
 *Current version: 1.0.0*

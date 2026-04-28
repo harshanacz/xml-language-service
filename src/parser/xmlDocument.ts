@@ -1,4 +1,4 @@
-import { XMLNode, XMLAttribute, XMLDocument } from "./xmlNode.js";
+import { XMLNode, XMLAttribute, XMLDocument, SyntaxError } from "./xmlNode.js";
 
 export class XMLDocumentImpl implements XMLDocument {
   type: "root" = "root";
@@ -11,12 +11,25 @@ export class XMLDocumentImpl implements XMLDocument {
   parent: undefined = undefined;
   isSelfClosing: boolean = false;
   name: undefined = undefined;
+  syntaxErrors: SyntaxError[];
 
-  constructor(uri: string, text: string, cst: any) {
+  constructor(uri: string, text: string, cst: any, lexErrors: any[] = [], parseErrors: any[] = []) {
     this.uri = uri;
     this.text = text;
     this.endOffset = text.length;
     this.children = this.buildTree(cst);
+    this.syntaxErrors = [
+      ...lexErrors.map((e: any) => ({
+        message: e.message,
+        line: e.line != null ? e.line - 1 : 0,
+        character: e.column != null ? e.column - 1 : 0,
+      })),
+      ...parseErrors.map((e: any) => ({
+        message: e.message,
+        line: e.previousToken?.startLine != null ? e.previousToken.startLine - 1 : 0,
+        character: e.previousToken?.startColumn != null ? e.previousToken.startColumn - 1 : 0,
+      })),
+    ];
   }
 
   private buildTree(cst: any): XMLNode[] {

@@ -13,9 +13,10 @@ const simpleXsd = `<?xml version="1.0"?>
   </xs:element>
 </xs:schema>`;
 
-const validXml = `<?xml version="1.0"?><root><child>hello</child></root>`;
+const validXml   = `<?xml version="1.0"?><root><child>hello</child></root>`;
 const invalidXml = `<?xml version="1.0"?><root><unknown>hello</unknown></root>`;
-const schemaUri = "file:///schema/simple.xsd";
+const brokenXml  = `<root><unclosed>`;
+const schemaUri  = "file:///schema/simple.xsd";
 
 describe("SchemaProvider", () => {
   let provider: SchemaProvider;
@@ -62,6 +63,13 @@ describe("SchemaProvider", () => {
     expect(result).toHaveLength(1);
     expect(result[0].severity).toBe("warning");
     expect(result[0].message).toContain("No schema registered");
+  });
+
+  it("validate() returns syntax diagnostics for malformed XML", async () => {
+    const doc = parseXMLDocument("file:///test.xml", brokenXml);
+    const result = await provider.validate(schemaUri, doc);
+    const syntaxErrors = result.filter((d) => d.source === "syntax");
+    expect(syntaxErrors.length).toBeGreaterThan(0);
   });
 
   it("registering the same uri twice replaces the old schema without throwing", async () => {

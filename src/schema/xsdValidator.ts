@@ -1,82 +1,139 @@
-import { XmlDocument, XsdValidator, XmlValidateError } from "libxml2-wasm";
-import { Position } from "../utils/positionUtils.js";
+// @ts-ignore — xerces_validator.js is the Emscripten-generated WASM glue
+import XercesModule from "../xerces-wasm/xerces_validator.js";
 import { Range } from "../utils/rangeUtils.js";
+import { Position } from "../utils/positionUtils.js";
 
-/** A validation diagnostic produced by XSD schema validation. */
+// ── Public types ──────────────────────────────────────────────────────────────
+
+/** A validation diagnostic used throughout the language service. */
 export interface Diagnostic {
   range: Range;
   message: string;
   severity: "error" | "warning" | "info";
-  source: "xsd";
+  source: "xsd" | "syntax";
 }
 
-/** Wraps a compiled XSD schema and validates XML documents against it. */
-export class XsdValidatorService {
-  private xsdText: string;
-  private _xsdDoc: XmlDocument | null = null;
-  private _validator: XsdValidator | null = null;
+export type XmlInput = string | Buffer | Blob;
 
-  private constructor(xsdText: string) {
-    this.xsdText = xsdText;
-  }
-
-  /**
-   * Parses the XSD and compiles the validator. Use this instead of the constructor
-   * to allow async error propagation during XSD parsing.
-   */
-  static async create(xsdText: string): Promise<XsdValidatorService> {
-    const service = new XsdValidatorService(xsdText);
-    service._xsdDoc = XmlDocument.fromString(xsdText);
-    service._validator = XsdValidator.fromDoc(service._xsdDoc);
-    return service;
-  }
-
-  /**
-   * Validates the given XML text against the compiled XSD schema.
-   * Returns an empty array when the document is valid.
-   * Never throws — all errors are captured as Diagnostic objects.
-   */
-  async validate(xmlText: string): Promise<Diagnostic[]> {
-    let xmlDoc: XmlDocument | null = null;
-    try {
-      xmlDoc = XmlDocument.fromString(xmlText);
-      this._validator!.validate(xmlDoc);
-      return [];
-    } catch (err) {
-      if (err instanceof XmlValidateError) {
-        return err.details.map((d) => ({
-          message: d.message.trim(),
-          severity: "error" as const,
-          source: "xsd" as const,
-          range: lineToRange(d.line),
-        }));
-      }
-      const msg = err instanceof Error ? err.message : String(err);
-      return [
-        {
-          message: "Validation failed: " + msg,
-          severity: "error" as const,
-          source: "xsd" as const,
-          range: lineToRange(0),
-        },
-      ];
-    } finally {
-      xmlDoc?.dispose();
-    }
-  }
-
-  /** Releases the compiled XSD document and validator from WASM memory. */
-  dispose(): void {
-    this._validator?.dispose();
-    this._xsdDoc?.dispose();
-    this._validator = null;
-    this._xsdDoc = null;
-  }
+/**
+ * A bundle of schemas for xs:import / xs:include support.
+ * `entry` is the root XSD content.
+ * `imports` maps relative filenames (matching schemaLocation values) to their XSD content.
+ */
+export interface SchemaBundle {
+  entry: XmlInput;
+  imports?: Record<string, XmlInput>;
 }
 
-// libxml2 reports 1-based line numbers; convert to 0-based LSP positions.
-function lineToRange(line: number): Range {
-  const lineIndex = line > 0 ? line - 1 : 0;
-  const pos: Position = { line: lineIndex, character: 0 };
+export type XsdInput = XmlInput | SchemaBundle;
+
+// ── Internal Xerces types ─────────────────────────────────────────────────────
+
+interface XercesDiagnostic {
+  message: string;
+  line: number;
+  column: number;
+  severity: "warning" | "error" | "fatal";
+}
+
+interface XercesResult {
+  valid: boolean;
+  parseErrors: XercesDiagnostic[];
+  schemaErrors: XercesDiagnostic[];
+}
+
+// ── WASM module loader ────────────────────────────────────────────────────────
+
+let _module: any = null;
+async function getModule(): Promise<any> {
+  if (!_module) _module = await XercesModule();
+  return _module;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function toText(input: XmlInput): Promise<string> {
+  if (typeof input === "string") return input;
+  if (Buffer.isBuffer(input)) return input.toString("utf8");
+  if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
+  throw new TypeError("Unsupported input type");
+}
+
+function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
+  return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
+}
+
+function toRange(line: number, column: number): Range {
+  const l = line > 0 ? line - 1 : 0;
+  const c = column > 0 ? column - 1 : 0;
+  const pos: Position = { line: l, character: c };
   return { start: pos, end: pos };
+}
+
+function mapResults(result: XercesResult): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  for (const d of result.parseErrors) {
+    diagnostics.push({
+      message: d.message,
+      severity: "error",
+      source: "syntax",
+      range: toRange(d.line, d.column),
+    });
+  }
+  for (const d of result.schemaErrors) {
+    diagnostics.push({
+      message: d.message,
+      severity: d.severity === "warning" ? "warning" : "error",
+      source: "xsd",
+      range: toRange(d.line, d.column),
+    });
+  }
+  return diagnostics;
+}
+
+// ── XsdValidatorService ───────────────────────────────────────────────────────
+
+/**
+ * Wraps the Xerces WASM validator.
+ * Accepts a plain XSD string or a SchemaBundle for xs:include / xs:import support.
+ * Xerces runs syntax parsing + schema validation in a single SAX pass, so both
+ * syntax errors and schema errors are returned together even on malformed XML.
+ */
+export class XsdValidatorService {
+  private xsd: XsdInput;
+
+  private constructor(xsd: XsdInput) {
+    this.xsd = xsd;
+  }
+
+  static async create(xsd: XsdInput): Promise<XsdValidatorService> {
+    await getModule();
+    return new XsdValidatorService(xsd);
+  }
+
+  async validate(xmlText: string): Promise<Diagnostic[]> {
+    const mod = await getModule();
+    let result: XercesResult;
+
+    if (isSchemaBundle(this.xsd)) {
+      const entryText = await toText(this.xsd.entry);
+      const imports: Record<string, string> = {};
+      if (this.xsd.imports) {
+        await Promise.all(
+          Object.entries(this.xsd.imports).map(async ([key, val]) => {
+            imports[key] = await toText(val);
+          })
+        );
+      }
+      result = await mod.validate(xmlText, { entry: entryText, imports });
+    } else {
+      result = await mod.validate(xmlText, await toText(this.xsd));
+    }
+
+    return mapResults(result);
+  }
+
+  dispose(): void {
+    // WASM module is shared — nothing to release per instance
+  }
 }

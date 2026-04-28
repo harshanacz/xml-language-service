@@ -8,6 +8,15 @@ export interface XMLAttribute {
   valueEnd: number | undefined;
 }
 
+/** A syntax error produced by the fault-tolerant CST parser (lex or parse phase). */
+export interface SyntaxError {
+  message: string;
+  /** 0-based line number */
+  line: number;
+  /** 0-based character offset */
+  character: number;
+}
+
 /** Represents a node in the XML parse tree, covering elements, text, comments, and the root. */
 export interface XMLNode {
   type: "element" | "text" | "comment" | "root";
@@ -25,6 +34,7 @@ export interface XMLDocument extends XMLNode {
   type: "root";
   uri: string;
   text: string;
+  syntaxErrors: SyntaxError[];
   findNodeAt(offset: number): XMLNode;
   traverse(callback: (node: XMLNode) => void): void;
 }

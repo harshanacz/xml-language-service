@@ -1,15 +1,23 @@
-import { XsdValidatorService, Diagnostic } from "./xsdValidator.js";
+import { XsdValidatorService, Diagnostic, XsdInput, SchemaBundle } from "./xsdValidator.js";
 import { XMLDocument } from "../parser/xmlNode.js";
 import { XsdCompletionProvider } from "./xsdCompletionProvider.js";
 import { SchemaAssociator, SchemaAssociation, ResolvedSchema } from "./schemaAssociator.js";
 
 export { SchemaAssociation, ResolvedSchema };
 
-/** Identifies a schema to register, pairing a URI key with the raw XSD source. */
+/**
+ * Identifies a schema to register.
+ * `xsdText` is the root XSD content.
+ * `imports` optionally maps relative filenames (matching xs:include / xs:import
+ * schemaLocation values) to their XSD content, enabling multi-file schemas.
+ */
 export interface SchemaInfo {
   uri: string;
   xsdText: string;
+  imports?: Record<string, string>;
 }
+
+export { SchemaBundle };
 
 /** Registry that manages compiled XSD validators and routes validation requests to them. */
 export class SchemaProvider {
@@ -32,7 +40,10 @@ export class SchemaProvider {
     if (existing) {
       existing.dispose();
     }
-    const validator = await XsdValidatorService.create(info.xsdText);
+    const xsd: XsdInput = info.imports
+      ? { entry: info.xsdText, imports: info.imports }
+      : info.xsdText;
+    const validator = await XsdValidatorService.create(xsd);
     this.schemas.set(info.uri, validator);
 
     this.completionProviders.set(info.uri, new XsdCompletionProvider(info.xsdText));

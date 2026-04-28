@@ -1,5 +1,9 @@
+// @ts-ignore — xerces_validator.js is the Emscripten-generated WASM glue
+import XercesModule from "../xerces-wasm/xerces_validator.js";
 import { Range } from "../utils/rangeUtils.js";
 import { Position } from "../utils/positionUtils.js";
+
+// ── Public types ──────────────────────────────────────────────────────────────
 
 /** A validation diagnostic used throughout the language service. */
 export interface Diagnostic {
@@ -9,6 +13,22 @@ export interface Diagnostic {
   source: "xsd" | "syntax";
 }
 
+export type XmlInput = string | Buffer | Blob;
+
+/**
+ * A bundle of schemas for xs:import / xs:include support.
+ * `entry` is the root XSD content.
+ * `imports` maps relative filenames (matching schemaLocation values) to their XSD content.
+ */
+export interface SchemaBundle {
+  entry: XmlInput;
+  imports?: Record<string, XmlInput>;
+}
+
+export type XsdInput = XmlInput | SchemaBundle;
+
+// ── Internal Xerces types ─────────────────────────────────────────────────────
+
 interface XercesDiagnostic {
   message: string;
   line: number;
@@ -16,20 +36,31 @@ interface XercesDiagnostic {
   severity: "warning" | "error" | "fatal";
 }
 
-interface ValidationResult {
+interface XercesResult {
   valid: boolean;
   parseErrors: XercesDiagnostic[];
   schemaErrors: XercesDiagnostic[];
 }
 
-let _mod: any = null;
+// ── WASM module loader ────────────────────────────────────────────────────────
+
+let _module: any = null;
 async function getModule(): Promise<any> {
-  if (!_mod) {
-    // @ts-ignore — xerces_validator.js is the Emscripten-generated WASM glue; place it in src/wasm/
-    const { default: XercesModule } = await import("../wasm/xerces_validator.js");
-    _mod = await XercesModule();
-  }
-  return _mod;
+  if (!_module) _module = await XercesModule();
+  return _module;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function toText(input: XmlInput): Promise<string> {
+  if (typeof input === "string") return input;
+  if (Buffer.isBuffer(input)) return input.toString("utf8");
+  if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
+  throw new TypeError("Unsupported input type");
+}
+
+function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
+  return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
 }
 
 function toRange(line: number, column: number): Range {
@@ -39,48 +70,67 @@ function toRange(line: number, column: number): Range {
   return { start: pos, end: pos };
 }
 
-/** Wraps the Xerces WASM validator — handles both syntax and XSD validation in one pass. */
+function mapResults(result: XercesResult): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  for (const d of result.parseErrors) {
+    diagnostics.push({
+      message: d.message,
+      severity: "error",
+      source: "syntax",
+      range: toRange(d.line, d.column),
+    });
+  }
+  for (const d of result.schemaErrors) {
+    diagnostics.push({
+      message: d.message,
+      severity: d.severity === "warning" ? "warning" : "error",
+      source: "xsd",
+      range: toRange(d.line, d.column),
+    });
+  }
+  return diagnostics;
+}
+
+// ── XsdValidatorService ───────────────────────────────────────────────────────
+
+/**
+ * Wraps the Xerces WASM validator.
+ * Accepts a plain XSD string or a SchemaBundle for xs:include / xs:import support.
+ * Xerces runs syntax parsing + schema validation in a single SAX pass, so both
+ * syntax errors and schema errors are returned together even on malformed XML.
+ */
 export class XsdValidatorService {
-  private xsdText: string;
+  private xsd: XsdInput;
 
-  private constructor(xsdText: string) {
-    this.xsdText = xsdText;
+  private constructor(xsd: XsdInput) {
+    this.xsd = xsd;
   }
 
-  static async create(xsdText: string): Promise<XsdValidatorService> {
+  static async create(xsd: XsdInput): Promise<XsdValidatorService> {
     await getModule();
-    return new XsdValidatorService(xsdText);
+    return new XsdValidatorService(xsd);
   }
 
-  /**
-   * Validates xmlText against the compiled XSD schema.
-   * Xerces runs syntax parsing and schema validation in a single pass, so both
-   * syntax errors and schema errors are returned together even on malformed XML.
-   */
   async validate(xmlText: string): Promise<Diagnostic[]> {
     const mod = await getModule();
-    const result: ValidationResult = await mod.validate(xmlText, this.xsdText);
-    const diagnostics: Diagnostic[] = [];
+    let result: XercesResult;
 
-    for (const d of result.parseErrors) {
-      diagnostics.push({
-        message: d.message,
-        severity: "error",
-        source: "syntax",
-        range: toRange(d.line, d.column),
-      });
+    if (isSchemaBundle(this.xsd)) {
+      const entryText = await toText(this.xsd.entry);
+      const imports: Record<string, string> = {};
+      if (this.xsd.imports) {
+        await Promise.all(
+          Object.entries(this.xsd.imports).map(async ([key, val]) => {
+            imports[key] = await toText(val);
+          })
+        );
+      }
+      result = await mod.validate(xmlText, { entry: entryText, imports });
+    } else {
+      result = await mod.validate(xmlText, await toText(this.xsd));
     }
 
-    for (const d of result.schemaErrors) {
-      diagnostics.push({
-        message: d.message,
-        severity: d.severity === "warning" ? "warning" : "error",
-        source: "xsd",
-        range: toRange(d.line, d.column),
-      });
-    }
-
-    return diagnostics;
+    return mapResults(result);
   }
 
   dispose(): void {

@@ -49,6 +49,7 @@ export class XMLDocumentImpl implements XMLDocument {
       children: [],
       startOffset: element?.location?.startOffset ?? 0,
       endOffset: (element?.location?.endOffset ?? 0) + 1,
+      endTagStartOffset: element?.children?.SLASH_OPEN?.[0]?.startOffset,
       parent,
       isSelfClosing,
     };

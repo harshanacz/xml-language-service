@@ -25,6 +25,7 @@ export interface XMLNode {
   children: XMLNode[];
   startOffset: number;
   endOffset: number;
+  endTagStartOffset?: number;
   parent: XMLNode | undefined;
   isSelfClosing: boolean;
 }

@@ -92,21 +92,34 @@ function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
   return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
 }
 
-function toRange(line: number, column: number): Range {
+// Xerces reports the column at the closing '>' of the problematic tag.
+// Walk backward on that line to find '<' so the full tag name is highlighted.
+function toRange(line: number, column: number, xmlLines: string[]): Range {
   const l = line > 0 ? line - 1 : 0;
   const c = column > 0 ? column - 1 : 0;
+
+  const lineText = xmlLines[l] ?? "";
+  const tagStart = lineText.lastIndexOf("<", c);
+  if (tagStart !== -1) {
+    return {
+      start: { line: l, character: tagStart },
+      end: { line: l, character: c + 1 },
+    };
+  }
+
   const pos: Position = { line: l, character: c };
   return { start: pos, end: pos };
 }
 
-function mapResults(result: XercesResult): Diagnostic[] {
+function mapResults(result: XercesResult, xmlText: string): Diagnostic[] {
+  const xmlLines = xmlText.split("\n");
   const diagnostics: Diagnostic[] = [];
   for (const d of result.parseErrors) {
     diagnostics.push({
       message: d.message,
       severity: "error",
       source: "syntax",
-      range: toRange(d.line, d.column),
+      range: toRange(d.line, d.column, xmlLines),
     });
   }
   for (const d of result.schemaErrors) {
@@ -114,7 +127,7 @@ function mapResults(result: XercesResult): Diagnostic[] {
       message: d.message,
       severity: d.severity === "warning" ? "warning" : "error",
       source: "xsd",
-      range: toRange(d.line, d.column),
+      range: toRange(d.line, d.column, xmlLines),
     });
   }
   return diagnostics;
@@ -162,7 +175,7 @@ export class XsdValidatorService {
       result = await mod.validate(xml, xsd);
     }
 
-    return mapResults(result);
+    return mapResults(result, xmlText);
   }
 
   dispose(): void {

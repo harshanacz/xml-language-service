@@ -1,4 +1,5 @@
-// @ts-ignore — xerces_validator.js is the Emscripten-generated WASM glue
+// @ts-ignore — xerces_validator.js is Emscripten-generated CJS; the local
+// package.json in xerces-wasm/ marks it CommonJS so Node ESM can import it.
 import XercesModule from "../xerces-wasm/xerces_validator.js";
 import { Range } from "../utils/rangeUtils.js";
 import { Position } from "../utils/positionUtils.js";

@@ -1,18 +1,44 @@
 {
   "name": "xml-language-service",
-  "version": "1.0.0",
-  "description": "language service for xml",
+  "version": "0.1.0",
+  "description": "Editor-agnostic XML language service with fault-tolerant parsing, XSD validation (Xerces-C++ WASM), completions, hover, symbols, folding, formatting, rename, definition and references.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc && cp -r src/schema/resources dist/schema/resources",
+    "build": "rm -rf dist && tsc && cp -r src/schema/resources dist/schema/resources && cp -r src/xerces-wasm dist/xerces-wasm",
     "build:watch": "tsc --watch",
     "test": "vitest",
     "test:run": "vitest run"
   },
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "xml",
+    "language-service",
+    "xsd",
+    "validation",
+    "completion",
+    "lsp",
+    "xerces",
+    "wasm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/harshanacz/xml-language-service.git"
+  },
+  "bugs": {
+    "url": "https://github.com/harshanacz/xml-language-service/issues"
+  },
+  "homepage": "https://github.com/harshanacz/xml-language-service#readme",
+  "license": "Apache-2.0",
   "dependencies": {
     "@xml-tools/parser": "^1.0.11"
   },
@@ -20,5 +46,8 @@
     "@types/node": "^25.6.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

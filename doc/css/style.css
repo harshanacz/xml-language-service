@@ -142,6 +142,9 @@ a:hover { text-decoration: underline; }
 .sidebar-section { margin-bottom: 6px; }
 
 .sidebar-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -650,6 +653,17 @@ code:not([class]) {
 
 .module-table tr:last-child td { border-bottom: none; }
 .module-table code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); }
+.module-table tbody tr:hover td { background: var(--surface); }
+
+/* ─── Sidebar overlay (mobile) ───────────────────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .5);
+  z-index: 80;
+}
+.sidebar-overlay.show { display: block; }
 
 /* ─── Mobile burger ──────────────────────────────────────────────────────── */
 .menu-toggle {

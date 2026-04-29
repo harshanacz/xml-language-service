@@ -2,7 +2,7 @@
 
 A pure TypeScript XML language service — no Java, no heavy runtime. Drop it into any editor extension or tooling pipeline and get full XML editing support plus XSD validation out of the box.
 
-The interesting part: XSD validation is powered by **Apache Xerces-C++ compiled to WebAssembly**. We compiled the battle-tested Xerces C++ library to WASM using Emscripten, then wrote a thin JS bridge on top. Because Xerces uses a SAX streaming parser, it validates as it reads — so you get both syntax errors and schema violations in the same pass, even on broken or incomplete XML. Most XML validators (including `libxml2-wasm`, which we replaced) require the document to be fully parsed before validation can run, making them useless on malformed files.
+The interesting part: XSD validation is powered by **Apache Xerces-C++ compiled to WebAssembly**. We compiled the battle-tested Xerces C++ library to WASM using Emscripten, then wrote a thin JS bridge on top. Because Xerces uses a SAX streaming parser, it validates as it reads — so you get both syntax errors and schema violations in the same pass, even on broken or incomplete XML. Most XML validators (including libxml2-wasm, which we replaced) require the document to be fully parsed before validation can run, making them useless on malformed files.
 
 ---
 

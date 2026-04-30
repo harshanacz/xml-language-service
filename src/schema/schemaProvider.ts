@@ -55,8 +55,8 @@ export class SchemaProvider {
   }
 
   /** Returns the raw ResolvedSchema (with xsdText) for the given file name and optional namespace, or null if none matches. */
-  findSchemaForDocument(fileName: string, xmlns?: string): ResolvedSchema | null {
-    return this.associator.findSchema(fileName, xmlns);
+  findSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
+    return this.associator.findSchema(fileName, xmlns, documentPath);
   }
 
   /**
@@ -64,12 +64,12 @@ export class SchemaProvider {
    * Automatically loads and caches the provider on first access via the built-in associations.
    * Returns null if no matching schema is found.
    */
-  resolveSchemaForDocument(fileName: string, xmlns?: string): XsdCompletionProvider | null {
-    const cacheKey = `${fileName}|${xmlns ?? ""}`;
+  resolveSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): XsdCompletionProvider | null {
+    const cacheKey = `${documentPath ?? fileName}|${xmlns ?? ""}`;
     const cached = this.completionProviders.get(cacheKey);
     if (cached) return cached;
 
-    const resolved = this.associator.findSchema(fileName, xmlns);
+    const resolved = this.associator.findSchema(fileName, xmlns, documentPath);
     if (!resolved) return null;
 
     const provider = new XsdCompletionProvider(resolved.xsdText);

@@ -59,4 +59,31 @@ describe("format", () => {
     const [edit] = format(doc, { tabSize: 4, insertSpaces: false });
     expect(edit.newText).toContain("\t<child/>");
   });
+
+  it("XML processing instruction line (<?xml ...?>) is not indented further", () => {
+    const xml = "<?xml version=\"1.0\"?>\n<root>\n<child/>\n</root>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+    const lines = edit.newText.split("\n");
+    // <?xml ?> should stay at level 0 (no leading whitespace)
+    const xmlDecl = lines.find((l) => l.includes("<?xml"));
+    expect(xmlDecl).toBeDefined();
+    expect(xmlDecl!.trimStart()).toBe(xmlDecl);
+  });
+
+  it("4-space tabSize produces correct indentation depth", () => {
+    const xml = "<root>\n<child/>\n</root>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 4, insertSpaces: true });
+    expect(edit.newText).toContain("    <child/>");
+  });
+
+  it("newText does not start with extra leading whitespace for root element", () => {
+    const xml = "<root>\n<child/>\n</root>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+    const firstLine = edit.newText.split("\n")[0];
+    // Root element should be at indent level 0
+    expect(firstLine.trimStart()).toBe(firstLine);
+  });
 });

@@ -82,6 +82,11 @@ export function getLanguageService() {
       schemaProvider.addUserAssociation(association);
     },
 
+    /** Clears all auto-registered schemas so they are re-loaded from disk on next validation. */
+    invalidateAutoSchemas(): void {
+      schemaProvider.invalidateAutoSchemas();
+    },
+
     dispose(): void {
       schemaProvider.dispose();
     },

@@ -85,16 +85,56 @@ function toRange(line: number, column: number, xmlLines: string[]): Range {
   return { start: pos, end: pos };
 }
 
+// Xerces embeds the mismatched start-tag name in messages like:
+//   "The element type "sequnce" must be terminated by the matching end-tag"
+// Extract it so we can locate the open tag in the source.
+const MISMATCH_RE = /element type ["']([^"']+)["'] must be terminated/i;
+
+// Search backward from `beforeLine`/`beforeCol` for <tagName (open tag).
+function findOpenTagRange(tagName: string, beforeLine: number, beforeCol: number, xmlLines: string[]): Range | null {
+  const needle = `<${tagName}`;
+  for (let l = beforeLine; l >= 0; l--) {
+    const lineText = xmlLines[l] ?? "";
+    const searchTo = l === beforeLine ? beforeCol : lineText.length;
+    const idx = lineText.lastIndexOf(needle, searchTo);
+    if (idx !== -1) {
+      return {
+        start: { line: l, character: idx },
+        end: { line: l, character: idx + needle.length },
+      };
+    }
+  }
+  return null;
+}
+
 function mapResults(result: XercesResult, xmlText: string): Diagnostic[] {
   const xmlLines = xmlText.split("\n");
   const diagnostics: Diagnostic[] = [];
   for (const d of result.parseErrors) {
+    const closeRange = toRange(d.line, d.column, xmlLines);
     diagnostics.push({
       message: d.message,
       severity: "error",
       source: "syntax",
-      range: toRange(d.line, d.column, xmlLines),
+      range: closeRange,
     });
+
+    // For mismatched-tag errors also mark the offending open tag.
+    const m = MISMATCH_RE.exec(d.message);
+    if (m) {
+      const openTagName = m[1];
+      const errLine = d.line > 0 ? d.line - 1 : 0;
+      const errCol  = d.column > 0 ? d.column - 1 : 0;
+      const openRange = findOpenTagRange(openTagName, errLine, errCol, xmlLines);
+      if (openRange) {
+        diagnostics.push({
+          message: `'<${openTagName}>' has no matching end-tag`,
+          severity: "error",
+          source: "syntax",
+          range: openRange,
+        });
+      }
+    }
   }
   for (const d of result.schemaErrors) {
     diagnostics.push({
@@ -147,6 +187,11 @@ export class XsdValidatorService {
       const xsdText = await toText(this.xsd);
       const targetNs = xsdText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
       result = await mod.validate(xmlText, xsdText, targetNs);
+    }
+
+    console.error(`[xsdValidator] raw result: valid=${result.valid} parseErrors=${result.parseErrors.length} schemaErrors=${result.schemaErrors.length}`);
+    if (result.schemaErrors.length > 0) {
+      console.error(`[xsdValidator] schemaErrors[0]: ${JSON.stringify(result.schemaErrors[0])}`);
     }
 
     return mapResults(result, xmlText);

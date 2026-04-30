@@ -52,7 +52,7 @@ export class XsdCompletionProvider {
           if (text) parts.push(text);
         }
       }
-      return parts.join("").trim();
+      return parts.join(" ").replace(/\s+/g, " ").trim();
     }
 
     function getTagName(node: any): string {
@@ -133,13 +133,26 @@ export class XsdCompletionProvider {
           return;
         }
 
+        // Only create a new entry for globally-declared elements (parentElementName === null).
+        // Locally-defined elements (nested inside another element's content model) must NOT
+        // pollute the top-level map — they would shadow global elements of the same name.
         if (!data.elements.has(name)) {
-          data.elements.set(name, {
-            name,
-            description: findDocumentation(node),
-            attributes: [],
-            children: [],
-          });
+          if (parentElementName === null) {
+            data.elements.set(name, {
+              name,
+              description: findDocumentation(node),
+              attributes: [],
+              children: [],
+            });
+          } else {
+            // Nested inline element: add to parent's children but do not register globally.
+            const parent = data.elements.get(parentElementName);
+            if (parent && !parent.children.includes(name)) {
+              parent.children.push(name);
+            }
+            recurseChildren(node, parentElementName);
+            return;
+          }
         }
 
         // Record any type reference for post-walk resolution.

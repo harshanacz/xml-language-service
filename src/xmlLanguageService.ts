@@ -22,15 +22,15 @@ export function getLanguageService() {
       return parseXMLDocument(uri, text);
     },
 
-    doComplete(document: XMLDocument, position: Position, fileName?: string): CompletionList {
+    doComplete(document: XMLDocument, position: Position, fileName?: string, documentPath?: string): CompletionList {
       const xmlns = (document as any).getNamespace?.() ?? undefined;
-      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns);
+      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns, documentPath);
       return doComplete(document, position, completionProvider);
     },
 
-    doHover(document: XMLDocument, position: Position, fileName?: string): HoverResult | null {
+    doHover(document: XMLDocument, position: Position, fileName?: string, documentPath?: string): HoverResult | null {
       const xmlns = (document as any).getNamespace?.() ?? undefined;
-      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns);
+      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns, documentPath);
       return doHover(document, position, completionProvider);
     },
 
@@ -73,8 +73,8 @@ export function getLanguageService() {
     },
 
     /** Returns the raw schema (xsdText + source) matched to the given file name and xmlns, or null if none found. */
-    resolveSchemaForDocument(fileName: string, xmlns?: string): ResolvedSchema | null {
-      return schemaProvider.findSchemaForDocument(fileName, xmlns);
+    resolveSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
+      return schemaProvider.findSchemaForDocument(fileName, xmlns, documentPath);
     },
 
     /** Registers a custom file-to-schema mapping, taking priority over built-in associations. */

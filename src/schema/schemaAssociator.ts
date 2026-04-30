@@ -48,7 +48,7 @@ export class SchemaAssociator {
    * User associations are checked first and short-circuit built-in lookup on match.
    * Returns null if no matching schema is found.
    */
-  findSchema(fileName: string, xmlns?: string): ResolvedSchema | null {
+  findSchema(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
     for (const assoc of this.userAssociations) {
       if (this.matchesPattern(fileName, assoc.pattern)) {
         const xsdText = this.readXsdFile(assoc.xsdPath);

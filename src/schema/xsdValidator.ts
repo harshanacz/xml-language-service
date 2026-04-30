@@ -60,53 +60,40 @@ async function toText(input: XmlInput): Promise<string> {
   throw new TypeError("Unsupported input type");
 }
 
-// Replace a matched region with spaces, preserving newlines so that
-// Xerces error line numbers map correctly back to the original source.
-function blankPreservingLines(match: string): string {
-  return match.replace(/[^\n]/g, " ");
-}
 
-// The Xerces WASM bridge uses setExternalNoNamespaceSchemaLocation, which only
-// works for schemas with no targetNamespace. For namespaced schemas we strip
-// the targetNamespace from the XSD and the default xmlns from the XML so both
-// sides are in no-namespace mode. All structural validation still runs.
-// Replacements use blankPreservingLines so multi-line attributes don't shift
-// line numbers, keeping Xerces error positions accurate in the original source.
-function toNoNamespace(xsdText: string, xmlText: string): { xsd: string; xml: string } {
-  const nsMatch = xsdText.match(/\btargetNamespace="([^"]*)"/);
-  if (!nsMatch) return { xsd: xsdText, xml: xmlText };
-
-  const targetNs = nsMatch[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const xsd = xsdText
-    .replace(/\s+targetNamespace="[^"]*"/, blankPreservingLines)
-    .replace(new RegExp(`\\s+xmlns="${targetNs}"`, "g"), blankPreservingLines);
-
-  const xml = xmlText
-    .replace(new RegExp(`\\s+xmlns="${targetNs}"`, "g"), blankPreservingLines)
-    .replace(/\s+xsi:schemaLocation="[^"]*"/g, blankPreservingLines);
-
-  return { xsd, xml };
-}
 
 function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
   return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
 }
 
-function toRange(line: number, column: number): Range {
+// Xerces reports the column at the closing '>' of the problematic tag.
+// Walk backward on that line to find '<' so the full tag name is highlighted.
+function toRange(line: number, column: number, xmlLines: string[]): Range {
   const l = line > 0 ? line - 1 : 0;
   const c = column > 0 ? column - 1 : 0;
+
+  const lineText = xmlLines[l] ?? "";
+  const tagStart = lineText.lastIndexOf("<", c);
+  if (tagStart !== -1) {
+    return {
+      start: { line: l, character: tagStart },
+      end: { line: l, character: c + 1 },
+    };
+  }
+
   const pos: Position = { line: l, character: c };
   return { start: pos, end: pos };
 }
 
-function mapResults(result: XercesResult): Diagnostic[] {
+function mapResults(result: XercesResult, xmlText: string): Diagnostic[] {
+  const xmlLines = xmlText.split("\n");
   const diagnostics: Diagnostic[] = [];
   for (const d of result.parseErrors) {
     diagnostics.push({
       message: d.message,
       severity: "error",
       source: "syntax",
-      range: toRange(d.line, d.column),
+      range: toRange(d.line, d.column, xmlLines),
     });
   }
   for (const d of result.schemaErrors) {
@@ -114,7 +101,7 @@ function mapResults(result: XercesResult): Diagnostic[] {
       message: d.message,
       severity: d.severity === "warning" ? "warning" : "error",
       source: "xsd",
-      range: toRange(d.line, d.column),
+      range: toRange(d.line, d.column, xmlLines),
     });
   }
   return diagnostics;
@@ -154,15 +141,15 @@ export class XsdValidatorService {
           })
         );
       }
-      const { xsd, xml } = toNoNamespace(entryText, xmlText);
-      result = await mod.validate(xml, { entry: xsd, imports });
+      const targetNs = entryText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
+      result = await mod.validate(xmlText, { entry: entryText, imports }, targetNs);
     } else {
       const xsdText = await toText(this.xsd);
-      const { xsd, xml } = toNoNamespace(xsdText, xmlText);
-      result = await mod.validate(xml, xsd);
+      const targetNs = xsdText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
+      result = await mod.validate(xmlText, xsdText, targetNs);
     }
 
-    return mapResults(result);
+    return mapResults(result, xmlText);
   }
 
   dispose(): void {

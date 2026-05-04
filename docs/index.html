@@ -351,7 +351,7 @@ console.log(broken.children[0].name); // "root"</code></pre>
     <div class="method-block">
       <div class="method-header">
         <span class="method-name">doComplete</span>
-        <span class="method-sig">(document, position, fileName?) → CompletionList</span>
+        <span class="method-sig">(document, position, fileName?, documentPath?) → CompletionList</span>
         <span class="method-tag mt-sync">sync</span>
       </div>
       <div class="method-body">
@@ -361,6 +361,7 @@ console.log(broken.children[0].name); // "root"</code></pre>
             <tr><td class="param-name">document</td><td><code>XMLDocument</code></td><td>Parsed document from <code>parseXMLDocument()</code>.</td></tr>
             <tr><td class="param-name">position</td><td><code>Position</code></td><td>Zero-based <code>{ line, character }</code> cursor.</td></tr>
             <tr><td class="param-name">fileName</td><td><code>string?</code></td><td>File name used to auto-resolve a built-in schema (e.g. <code>"pom.xml"</code>). Optional.</td></tr>
+            <tr><td class="param-name">documentPath</td><td><code>string?</code></td><td>Absolute file-system path of the document. Used for glob-pattern schema matching and to look up auto-registered schemas.</td></tr>
           </tbody>
         </table>
 
@@ -392,7 +393,7 @@ list.items.forEach(i =&gt; console.log(i.label, "→", i.insertText));
     <div class="method-block">
       <div class="method-header">
         <span class="method-name">doHover</span>
-        <span class="method-sig">(document, position, fileName?) → HoverResult | null</span>
+        <span class="method-sig">(document, position, fileName?, documentPath?) → HoverResult | null</span>
         <span class="method-tag mt-sync">sync</span>
       </div>
       <div class="method-body">
@@ -402,6 +403,7 @@ list.items.forEach(i =&gt; console.log(i.label, "→", i.insertText));
             <tr><td class="param-name">document</td><td><code>XMLDocument</code></td><td>Parsed document.</td></tr>
             <tr><td class="param-name">position</td><td><code>Position</code></td><td>Cursor position.</td></tr>
             <tr><td class="param-name">fileName</td><td><code>string?</code></td><td>Used to resolve built-in schemas for richer XSD-aware hover content.</td></tr>
+            <tr><td class="param-name">documentPath</td><td><code>string?</code></td><td>Absolute file-system path. Used for glob-pattern schema matching and auto-registered schema lookup.</td></tr>
           </tbody>
         </table>
         <div class="returns-label">Returns</div>
@@ -739,14 +741,17 @@ interface SchemaInfo {
     <div class="code-wrap">
       <div class="code-label"><span class="lang">typescript</span></div>
       <pre class="language-typescript"><code>ls.addUserAssociation({
-  pattern: "**/*.config.xml",           // glob pattern
-  uri: "file:///my-config-schema.xsd",  // must already be registered
+  pattern: "**/*.config.xml",                         // glob pattern
+  xsdPath: "/absolute/path/to/my-config-schema.xsd", // absolute path to XSD file
+  isBuiltIn: false,
 });
 
-// Or match by namespace:
+// Or match by namespace (pattern is still required):
 ls.addUserAssociation({
+  pattern: "**/*.xml",
   namespace: "http://example.com/my-ns",
-  uri: "file:///my-ns-schema.xsd",
+  xsdPath: "/absolute/path/to/my-ns-schema.xsd",
+  isBuiltIn: false,
 });</code></pre>
     </div>
 
@@ -754,7 +759,7 @@ ls.addUserAssociation({
     <div class="code-wrap">
       <div class="code-label"><span class="lang">typescript</span></div>
       <pre class="language-typescript"><code>const resolved = ls.resolveSchemaForDocument("pom.xml");
-// { uri: "built-in://maven-4.0.0.xsd", xsdText: "...", source: "builtin" } | null</code></pre>
+// { xsdPath: "/path/to/maven-4.0.0.xsd", xsdText: "...", source: "builtin" } | null</code></pre>
     </div>
   </section>
 
@@ -808,6 +813,17 @@ ls.addUserAssociation({
       </div>
       <div class="method-body">
         <p>Returns <code>true</code> if a schema is registered under <code>uri</code>.</p>
+      </div>
+    </div>
+
+    <div class="method-block">
+      <div class="method-header">
+        <span class="method-name">invalidateAutoSchemas</span>
+        <span class="method-sig">() → void</span>
+        <span class="method-tag mt-sync">sync</span>
+      </div>
+      <div class="method-body">
+        <p>Removes all schemas that were auto-registered under the <code>auto://</code> prefix so they are re-loaded fresh on the next validation. Call this when an XSD file changes on disk.</p>
       </div>
     </div>
 
@@ -992,9 +1008,9 @@ interface SchemaBundle {
       <div class="type-card">
         <div class="type-card-header"><span class="type-kw">interface</span><span class="type-name">ResolvedSchema</span></div>
         <pre class="language-typescript"><code>interface ResolvedSchema {
-  uri:     string;
+  xsdPath: string;
   xsdText: string;
-  source:  "builtin" | "user";
+  source:  "builtin" | "custom";
 }</code></pre>
       </div>
     </div>
@@ -1145,7 +1161,7 @@ export function deactivate() { ls.dispose(); }</code></pre>
         <tr><td><code>src/schema/schemaAssociator.ts</code></td><td>Filename/namespace → built-in schema mapping</td></tr>
         <tr><td><code>src/schema/xsdCompletionProvider.ts</code></td><td>XSD-aware completions and hover content</td></tr>
         <tr><td><code>src/xerces-wasm/</code></td><td>Emscripten-compiled Xerces-C++ binary and JS glue</td></tr>
-        <tr><td><code>src/schema/resources/default/</code></td><td>Built-in XSD files (Maven, Servlet)</td></tr>
+        <tr><td><code>src/resources/default/</code></td><td>Built-in XSD files (Maven, Servlet)</td></tr>
         <tr><td><code>src/utils/positionUtils.ts</code></td><td>Offset↔Position converters with bounds clamping</td></tr>
         <tr><td><code>src/utils/rangeUtils.ts</code></td><td>Range creation and containment helpers</td></tr>
       </tbody>

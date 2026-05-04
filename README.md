@@ -112,7 +112,8 @@ Xerces-C++ WASM   (SAX parse + XSD validation in one pass)
 
 ```
 src/
-├── xmlLanguageService.ts        ← public API
+├── index.ts                     ← public API (barrel)
+├── xmlLanguageService.ts        ← service factory / orchestrator
 ├── parser/
 │   ├── xmlNode.ts               ← XMLNode / XMLDocument interfaces
 │   ├── xmlDocument.ts           ← CST → node tree
@@ -130,8 +131,9 @@ src/
 │   ├── schemaProvider.ts        ← schema registry + orchestration
 │   ├── xsdValidator.ts          ← Xerces WASM wrapper
 │   ├── xsdCompletionProvider.ts ← XSD-aware completions/hover
-│   ├── schemaAssociator.ts      ← filename/namespace → schema mapping
-│   └── resources/default/       ← built-in XSD files
+│   └── schemaAssociator.ts      ← filename/namespace → schema mapping
+├── resources/
+│   └── default/                 ← built-in XSD files
 ├── xerces-wasm/
 │   ├── xerces_validator.js      ← Emscripten-generated JS glue
 │   └── xerces_validator.wasm    ← compiled Xerces-C++
@@ -152,4 +154,4 @@ npm run test:run    # run all tests once
 npm test            # watch mode tests
 ```
 
-**156 tests — 15 test files**
+**208 tests — 16 test files**

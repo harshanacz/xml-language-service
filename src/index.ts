@@ -17,5 +17,5 @@ export { DefinitionResult } from "./services/xmlDefinition.js";
 export { ReferenceResult } from "./services/xmlReferences.js";
 
 // Phase 02 schema validation types
-export { Diagnostic, SchemaBundle, XsdInput, XmlInput } from "./schema/xsdValidator.js";
-export { SchemaProvider, SchemaInfo, ResolvedSchema } from "./schema/schemaProvider.js";
+export { Diagnostic, SchemaBundle, XsdInput, XmlInput, XsdValidatorService } from "./schema/xsdValidator.js";
+export { SchemaProvider, SchemaInfo, ResolvedSchema, SchemaAssociation } from "./schema/schemaProvider.js";

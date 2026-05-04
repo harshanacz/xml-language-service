@@ -90,6 +90,11 @@ function toRange(line: number, column: number, xmlLines: string[]): Range {
 // Extract it so we can locate the open tag in the source.
 const MISMATCH_RE = /element type ["']([^"']+)["'] must be terminated/i;
 
+// Xerces reports content-model violations at the parent's closing tag, e.g.:
+//   "element 'propert' is not allowed for content model '(...)'"
+// Extract the disallowed child name so we can remap the error to the child's open tag.
+const CONTENT_MODEL_RE = /\belement ['"](?:[^'"]*})?([^'"]+)['"]\s+is not allowed/;
+
 // Search backward from `beforeLine`/`beforeCol` for <tagName (open tag).
 function findOpenTagRange(tagName: string, beforeLine: number, beforeCol: number, xmlLines: string[]): Range | null {
   const needle = `<${tagName}`;
@@ -137,11 +142,22 @@ function mapResults(result: XercesResult, xmlText: string): Diagnostic[] {
     }
   }
   for (const d of result.schemaErrors) {
+    const errLine = d.line > 0 ? d.line - 1 : 0;
+    const errCol  = d.column > 0 ? d.column - 1 : 0;
+    let range = toRange(d.line, d.column, xmlLines);
+
+    const cm = CONTENT_MODEL_RE.exec(d.message);
+    if (cm) {
+      const localName = cm[1];
+      const pinned = findOpenTagRange(localName, errLine, errCol, xmlLines);
+      if (pinned) range = pinned;
+    }
+
     diagnostics.push({
       message: d.message,
       severity: d.severity === "warning" ? "warning" : "error",
       source: "xsd",
-      range: toRange(d.line, d.column, xmlLines),
+      range,
     });
   }
   return diagnostics;

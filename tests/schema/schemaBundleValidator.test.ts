@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { readFile } from "fs/promises";
+import { readFile, readdir } from "fs/promises";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { XsdValidatorService, SchemaBundle } from "../../src/schema/xsdValidator.js";
@@ -11,6 +11,27 @@ const fixtures  = join(__dirname, "fixtures");
 
 async function xsd(name: string): Promise<string> {
   return readFile(join(fixtures, name), "utf8");
+}
+
+async function loadSiblingSchemaFiles(
+  root: string,
+  entryName: string,
+  relBase = "",
+): Promise<Record<string, string>> {
+  const imports: Record<string, string> = {};
+  const entries = await readdir(join(root, relBase), { withFileTypes: true });
+  for (const entry of entries) {
+    const rel = relBase ? `${relBase}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      Object.assign(imports, await loadSiblingSchemaFiles(root, entryName, rel));
+    } else if (
+      (entry.name.toLowerCase().endsWith(".xsd") || entry.name.toLowerCase().endsWith(".dtd")) &&
+      rel !== entryName
+    ) {
+      imports[rel] = await readFile(join(root, rel), "utf8");
+    }
+  }
+  return imports;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -222,5 +243,21 @@ describe("xs:include — end-to-end through SchemaProvider", () => {
     expect(result).toHaveLength(1);
     expect(result[0].severity).toBe("warning");
     expect(result[0].source).toBe("xsd");
+  });
+});
+
+describe("WSO2 schemas with W3C XMLSchema.dtd", () => {
+  it("does not fail validation on the XMLSchema.dtd xmlns warning", async () => {
+    const schemaRoot = join(__dirname, "../wso2/schemas/440");
+    const entry = await readFile(join(schemaRoot, "api.xsd"), "utf8");
+    const imports = await loadSiblingSchemaFiles(schemaRoot, "api.xsd");
+    const validator = await XsdValidatorService.create({ entry, imports });
+    const xml = `<api xmlns="http://ws.apache.org/ns/synapse" name="a" context="/a"><resource methods="GET" uri-template="/x"/></api>`;
+
+    const result = await validator.validate(xml);
+
+    expect(result.map((d) => d.message)).not.toContain(
+      "attribute 'xmlns' has already been declared for element 'schema'",
+    );
   });
 });

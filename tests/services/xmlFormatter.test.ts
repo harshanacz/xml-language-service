@@ -86,4 +86,42 @@ describe("format", () => {
     // Root element should be at indent level 0
     expect(firstLine.trimStart()).toBe(firstLine);
   });
+
+  it("formats nested one-line XML using the parsed tree", () => {
+    const xml = "<root><child><grandchild/></child><sibling/></root>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+
+    expect(edit.newText).toBe([
+      "<root>",
+      "  <child>",
+      "    <grandchild/>",
+      "  </child>",
+      "  <sibling/>",
+      "</root>",
+    ].join("\n"));
+  });
+
+  it("keeps multi-line attributes with their parent opening tag", () => {
+    const xml = `<root><item
+id="1"
+name="two"><child/></item></root>`;
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+
+    expect(edit.newText).toContain("  <item id=\"1\" name=\"two\">");
+    expect(edit.newText).toContain("    <child/>");
+  });
+
+  it("preserves mixed inline content instead of splitting significant text", () => {
+    const xml = "<root><p>Hello <b>world</b>!</p></root>";
+    const doc = parseXMLDocument("file:///test.xml", xml);
+    const [edit] = format(doc, { tabSize: 2, insertSpaces: true });
+
+    expect(edit.newText).toBe([
+      "<root>",
+      "  <p>Hello <b>world</b>!</p>",
+      "</root>",
+    ].join("\n"));
+  });
 });

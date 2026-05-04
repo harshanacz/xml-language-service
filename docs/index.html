@@ -1164,7 +1164,7 @@ export function deactivate() { ls.dispose(); }</code></pre>
         <tr><td><code>src/services/xmlHover.ts</code></td><td>doHover — Markdown hover content builder</td></tr>
         <tr><td><code>src/services/xmlSymbols.ts</code></td><td>findDocumentSymbols — recursive symbol tree builder</td></tr>
         <tr><td><code>src/services/xmlFolding.ts</code></td><td>getFoldingRanges — multi-line region collector</td></tr>
-        <tr><td><code>src/services/xmlFormatter.ts</code></td><td>format — line-based indent normalizer</td></tr>
+        <tr><td><code>src/services/xmlFormatter.ts</code></td><td>format — AST-guided indent normalizer</td></tr>
         <tr><td><code>src/services/xmlRename.ts</code></td><td>doRename — open+close tag pair rename</td></tr>
         <tr><td><code>src/services/xmlDefinition.ts</code></td><td>doDefinition — open↔close tag navigation</td></tr>
         <tr><td><code>src/services/xmlReferences.ts</code></td><td>findReferences — same-name element finder</td></tr>
@@ -1183,7 +1183,7 @@ export function deactivate() { ls.dispose(); }</code></pre>
     <ul>
       <li><strong>Fault-tolerant parsing</strong> — the underlying parser (<code>@xml-tools/parser</code>) builds a partial tree on broken input and never throws. All service methods work on incomplete documents.</li>
       <li><strong>Xerces SAX over libxml2 DOM</strong> — libxml2 requires a full DOM parse before XSD validation can run, making it useless on malformed XML. Xerces's SAX streaming approach validates as it reads, so syntax errors and schema violations are reported in the same pass even when the document is incomplete.</li>
-      <li><strong>Immutable documents</strong> — services read <code>XMLDocument</code> but never mutate it. <code>format()</code> operates on the raw text string only.</li>
+      <li><strong>Immutable documents</strong> — services read <code>XMLDocument</code> but never mutate it. <code>format()</code> uses AST node offsets to build a replacement text edit.</li>
       <li><strong>LSP-compatible shapes</strong> — <code>Position</code>, <code>Range</code>, <code>DocumentSymbol</code>, <code>FoldingRange</code>, <code>Diagnostic</code> all mirror LSP types, making adaptation to an LSP server straightforward.</li>
       <li><strong>SchemaBundle via emscripten::val</strong> — the Xerces C++ bridge uses a polymorphic <code>emscripten::val</code> parameter so a single <code>validate()</code> binding accepts both a plain XSD string and a <code>{ entry, imports }</code> bundle object without any branching in the binding layer.</li>
     </ul>

@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
-import { findDocumentSymbols, DocumentSymbol } from "../../src/services/xmlSymbols.js";
+import {
+  findDocumentSymbols,
+  DocumentSymbol,
+  DocumentSymbolKind,
+} from "../../src/services/xmlSymbols.js";
 
 const xml = `<root>
   <child name="test">
@@ -20,9 +24,9 @@ describe("findDocumentSymbols", () => {
     expect(symbols[0].name).toBe("root");
   });
 
-  it("root has one child symbol named 'child'", () => {
+  it("root has one child symbol named with its identifying attribute", () => {
     expect(symbols[0].children).toHaveLength(1);
-    expect(symbols[0].children[0].name).toBe("child");
+    expect(symbols[0].children[0].name).toBe("child (test)");
   });
 
   it("child has one child symbol named 'grandchild'", () => {
@@ -48,10 +52,23 @@ describe("findDocumentSymbols", () => {
     checkRanges(symbols);
   });
 
-  it("all symbols have kind 'element'", () => {
+  it("all symbols have a supported kind", () => {
+    const supportedKinds: DocumentSymbolKind[] = [
+      "namespace",
+      "class",
+      "method",
+      "function",
+      "property",
+      "field",
+      "interface",
+      "struct",
+      "array",
+      "object",
+    ];
+
     function checkKind(syms: DocumentSymbol[]): void {
       for (const sym of syms) {
-        expect(sym.kind).toBe("element");
+        expect(supportedKinds).toContain(sym.kind);
         checkKind(sym.children);
       }
     }
@@ -112,5 +129,68 @@ describe("findDocumentSymbols", () => {
     expect(syms.length).toBeGreaterThanOrEqual(1);
     const names = syms.map((s) => s.name);
     expect(names).toContain("a");
+  });
+
+  it("uses name, id, then key attributes to make repeated element names distinguishable", () => {
+    const synapseDoc = parseXMLDocument(
+      "file:///synapse.xml",
+      `<definitions>
+  <sequence name="main">
+    <property id="trace-id"/>
+    <endpoint key="OrdersEP"/>
+    <sequence/>
+  </sequence>
+</definitions>`
+    );
+
+    const [definitions] = findDocumentSymbols(synapseDoc);
+    const [sequence] = definitions.children;
+
+    expect(sequence.name).toBe("sequence (main)");
+    expect(sequence.kind).toBe("class");
+    expect(sequence.children.map((child) => child.name)).toEqual([
+      "property (trace-id)",
+      "endpoint (OrdersEP)",
+      "sequence",
+    ]);
+    expect(sequence.children.map((child) => child.kind)).toEqual([
+      "property",
+      "class",
+      "field",
+    ]);
+  });
+
+  it("classifies common WSO2 MI elements for richer Outline icons", () => {
+    const apiDoc = parseXMLDocument(
+      "file:///api.xml",
+      `<api name="MultiplyAPI">
+  <resource>
+    <inSequence>
+      <property name="result"/>
+      <payloadFactory>
+        <format/>
+        <args/>
+      </payloadFactory>
+      <respond/>
+    </inSequence>
+  </resource>
+</api>`
+    );
+
+    const [api] = findDocumentSymbols(apiDoc);
+    const [resource] = api.children;
+    const [inSequence] = resource.children;
+    const [, payloadFactory, respond] = inSequence.children;
+
+    expect(api.kind).toBe("class");
+    expect(resource.kind).toBe("method");
+    expect(inSequence.kind).toBe("method");
+    expect(inSequence.children[0].kind).toBe("property");
+    expect(payloadFactory.kind).toBe("function");
+    expect(payloadFactory.children.map((child) => child.kind)).toEqual([
+      "struct",
+      "array",
+    ]);
+    expect(respond.kind).toBe("function");
   });
 });

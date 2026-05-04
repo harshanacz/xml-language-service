@@ -120,9 +120,11 @@ export class SchemaProvider {
     const resolved = this.associator.findSchema(fileName, xmlns, documentPath);
     if (!resolved) return null;
 
-    const provider = new XsdCompletionProvider(resolved.xsdText);
-    this.completionProviders.set(cacheKey, provider);
-    return provider;
+    // Build a provider from the raw XSD text (no xs:include inlining). This is a
+    // partial provider used only when the auto:// provider is not ready yet. It is
+    // intentionally NOT cached so that once validateAndSend registers the full
+    // auto:// provider it is used immediately on the next request.
+    return new XsdCompletionProvider(resolved.xsdText);
   }
 
   /**

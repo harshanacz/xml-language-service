@@ -40,21 +40,39 @@ export function doComplete(
     return { items: [], isIncomplete: false };
   }
 
-  // Context 1: cursor is right after '<' or '<' + partial tag name
+  // Context 1: cursor is right after '<' or '<' + partial tag name (no space yet)
   if (/<\w*$/.test(textBefore)) {
     if (schemaProvider?.hasData()) {
       const node = document.findNodeAt(offset);
-      // Determine the enclosing element: if findNodeAt returns an element whose
-      // parent is also an element, the parent is the context; otherwise the node itself is.
-      const parentName: string | undefined =
-        node.parent?.type === "element"
-          ? node.parent.name
-          : node.type === "element"
-          ? node.name
-          : undefined;
 
-      let names: string[] = parentName ? schemaProvider.getChildren(parentName) : [];
-      if (names.length === 0) names = schemaProvider.getAllElements();
+      // Determine whether the cursor is still inside this node's open tag (e.g. '<foo|')
+      // or in its content area (e.g. '<foo>\n  <|').  When inside the open tag we want
+      // to suggest SIBLINGS (children of the parent); when in the content area we want
+      // to suggest CHILDREN of the current node.
+      let parentName: string | undefined;
+      if (node.type === "element") {
+        const nodeText = document.text.substring(node.startOffset, offset);
+        const cursorIsInOpenTag = !nodeText.includes(">");
+        if (cursorIsInOpenTag) {
+          parentName =
+            node.parent?.type === "element" ? node.parent.name : undefined;
+        } else {
+          parentName = node.name;
+        }
+      }
+
+      let names: string[];
+      if (parentName === undefined) {
+        // Root-level context: prefer children of the top-level container element
+        // (e.g. <definitions> in Synapse config) so only config-artifact elements
+        // are offered rather than every globally-declared element including mediators.
+        names = schemaProvider.getChildren("definitions");
+        if (names.length === 0) names = schemaProvider.getAllElements();
+      } else {
+        // Inside a known element: suggest only its schema-defined children.
+        // No getAllElements() fallback — unknown or childless elements get nothing.
+        names = schemaProvider.getChildren(parentName);
+      }
 
       return {
         items: names.map((name: string) => ({
@@ -81,55 +99,66 @@ export function doComplete(
     };
   }
 
-  // Context 2: cursor is in an attribute position (after tag name + whitespace)
-  if (/\w+\s+\w*$/.test(textBefore)) {
-    if (schemaProvider?.hasData()) {
-      const node = document.findNodeAt(offset);
-      const nodeName: string | undefined =
-        node.type === "element" ? node.name : node.parent?.name;
+  // Context 2: cursor is inside an open tag (attribute position).
+  // Use lastIndexOf('<') so this fires even after completed attribute values like
+  // '<log level="full" |' where the old \w+\s+\w*$ regex would miss the quote boundary.
+  const lastOpenAngle = textBefore.lastIndexOf("<");
+  if (lastOpenAngle !== -1) {
+    const fragment = textBefore.slice(lastOpenAngle);
+    // Confirm: not a close tag, and the `<` hasn't been closed yet.
+    if (!fragment.startsWith("</") && !fragment.includes(">")) {
+      const tagMatch = /^<([\w:]+)/.exec(fragment);
+      if (tagMatch && fragment.length > tagMatch[0].length) {
+        const afterTagName = fragment.slice(tagMatch[0].length);
+        // Only enter attribute context when there is at least one space after the tag name.
+        if (/^\s/.test(afterTagName)) {
+          const tagName = tagMatch[1];
 
-      const schemaAttrs: any[] = nodeName ? schemaProvider.getAttributes(nodeName) : [];
-      const schemaAttrNames = new Set<string>(schemaAttrs.map((a: any) => a.name));
+          if (schemaProvider?.hasData()) {
+            const schemaAttrs: any[] = schemaProvider.getAttributes(tagName) ?? [];
+            const schemaAttrNames = new Set<string>(schemaAttrs.map((a: any) => a.name));
 
-      // Collect attributes seen on this element name in the document tree
-      const docAttrs = new Set<string>();
-      if (nodeName) {
-        document.traverse((n) => {
-          if (n.type === "element" && n.name === nodeName) {
-            for (const a of n.attributes) docAttrs.add(a.name);
+            const docAttrs = new Set<string>();
+            document.traverse((n) => {
+              if (n.type === "element" && n.name === tagName) {
+                for (const a of n.attributes) docAttrs.add(a.name);
+              }
+            });
+            const extraDocAttrs = Array.from(docAttrs).filter(
+              (a) => !schemaAttrNames.has(a)
+            );
+
+            return {
+              items: [
+                ...schemaAttrs.map((attr: any) => ({
+                  label: attr.name,
+                  kind: "attribute" as const,
+                  insertText: `${attr.name}="$0"`,
+                  ...(attr.type ? { detail: attr.type } : {}),
+                })),
+                ...extraDocAttrs.map((attr) => ({
+                  label: attr,
+                  kind: "attribute" as const,
+                  insertText: `${attr}="$0"`,
+                })),
+              ],
+              isIncomplete: false,
+            };
           }
-        });
+
+          // Fallback: static common XML attributes
+          const attrs = ["xml:lang", "xml:space", "xmlns"];
+          return {
+            items: attrs.map((attr) => ({
+              label: attr,
+              kind: "attribute" as const,
+              insertText: `${attr}="$0"`,
+            })),
+            isIncomplete: false,
+          };
+        }
       }
-      const extraDocAttrs = Array.from(docAttrs).filter((a) => !schemaAttrNames.has(a));
-
-      return {
-        items: [
-          ...schemaAttrs.map((attr: any) => ({
-            label: attr.name,
-            kind: "attribute" as const,
-            insertText: `${attr.name}="$0"`,
-            ...(attr.type ? { detail: attr.type } : {}),
-          })),
-          ...extraDocAttrs.map((attr) => ({
-            label: attr,
-            kind: "attribute" as const,
-            insertText: `${attr}="$0"`,
-          })),
-        ],
-        isIncomplete: false,
-      };
     }
-
-    // Fallback: static common XML attributes
-    const attrs = ["xml:lang", "xml:space", "xmlns"];
-    return {
-      items: attrs.map((attr) => ({
-        label: attr,
-        kind: "attribute" as const,
-        insertText: `${attr}="$0"`,
-      })),
-      isIncomplete: false,
-    };
   }
 
   return { items: [], isIncomplete: false };

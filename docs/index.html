@@ -436,11 +436,11 @@ console.log(h?.contents);
           <pre class="language-typescript"><code>const symbols = ls.findDocumentSymbols(doc);
 // [
 //   {
-//     name: "catalog",
-//     kind: "element",
+//     name: "api (MultiplyAPI)",
+//     kind: "class",
 //     range: { start: { line:0, character:0 }, end: { line:5, character:11 } },
 //     children: [
-//       { name: "book", kind: "element", children: [...] }
+//       { name: "resource", kind: "method", children: [...] }
 //     ]
 //   }
 // ]</code></pre>
@@ -928,9 +928,21 @@ interface CompletionList {
 
       <div class="type-card">
         <div class="type-card-header"><span class="type-kw">interface</span><span class="type-name">DocumentSymbol</span></div>
-        <pre class="language-typescript"><code>interface DocumentSymbol {
+        <pre class="language-typescript"><code>type DocumentSymbolKind =
+  | "namespace"
+  | "class"
+  | "method"
+  | "function"
+  | "property"
+  | "field"
+  | "interface"
+  | "struct"
+  | "array"
+  | "object";
+
+interface DocumentSymbol {
   name:           string;
-  kind:           "element";
+  kind:           DocumentSymbolKind;
   range:          Range;
   selectionRange: Range;
   children:       DocumentSymbol[];

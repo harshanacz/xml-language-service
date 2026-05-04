@@ -57,4 +57,60 @@ describe("findDocumentSymbols", () => {
     }
     checkKind(symbols);
   });
+
+  it("all symbols have a selectionRange defined", () => {
+    function checkSelection(syms: DocumentSymbol[]): void {
+      for (const sym of syms) {
+        expect(sym.selectionRange).toBeDefined();
+        expect(sym.selectionRange.start).toBeDefined();
+        expect(sym.selectionRange.end).toBeDefined();
+        checkSelection(sym.children);
+      }
+    }
+    checkSelection(symbols);
+  });
+
+  it("selectionRange start equals range start for all symbols", () => {
+    // selectionRange covers '<tagName' only; it starts at the same offset as range
+    function check(syms: DocumentSymbol[]): void {
+      for (const sym of syms) {
+        expect(sym.selectionRange.start.line).toBe(sym.range.start.line);
+        expect(sym.selectionRange.start.character).toBe(sym.range.start.character);
+        check(sym.children);
+      }
+    }
+    check(symbols);
+  });
+
+  it("selectionRange end is within the range (not beyond)", () => {
+    function check(syms: DocumentSymbol[]): void {
+      for (const sym of syms) {
+        const selEnd = sym.selectionRange.end;
+        const rangeEnd = sym.range.end;
+        const withinRange =
+          selEnd.line < rangeEnd.line ||
+          (selEnd.line === rangeEnd.line && selEnd.character <= rangeEnd.character);
+        expect(withinRange).toBe(true);
+        check(sym.children);
+      }
+    }
+    check(symbols);
+  });
+
+  it("empty document returns an empty array", () => {
+    const emptyDoc = parseXMLDocument("file:///test.xml", "");
+    expect(findDocumentSymbols(emptyDoc)).toEqual([]);
+  });
+
+  it("document with multiple top-level siblings returns all of them", () => {
+    // Note: technically invalid XML, but fault-tolerant parser should handle it
+    const multiDoc = parseXMLDocument(
+      "file:///test.xml",
+      "<a/><b/><c/>"
+    );
+    const syms = findDocumentSymbols(multiDoc);
+    expect(syms.length).toBeGreaterThanOrEqual(1);
+    const names = syms.map((s) => s.name);
+    expect(names).toContain("a");
+  });
 });

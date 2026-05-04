@@ -28,41 +28,41 @@ export function doHover(
     if (schemaProvider?.hasData() && node.name) {
       const info = schemaProvider.getElement(node.name);
       if (info) {
-        const lines: string[] = [`### <${node.name}>`];
+        const sections: string[] = [`### \`<${node.name}>\``];
 
-        if (info.description) lines.push(info.description);
+        if (info.description) sections.push(info.description);
 
         if (info.attributes.length > 0) {
-          const attrList = info.attributes
+          const attrLines = info.attributes
             .map((a: any) =>
-              `\`${a.name}${a.type ? `: ${a.type}` : ""}\`${a.required ? " (required)" : ""}`
+              `- \`${a.name}\`${a.type ? ` — *${a.type}*` : ""}${a.required ? " *(required)*" : ""}`
             )
-            .join(", ");
-          lines.push(`**Attributes:** ${attrList}`);
+            .join("\n");
+          sections.push(`**Attributes:**\n${attrLines}`);
         }
 
         if (info.children.length > 0) {
-          lines.push(`**Children:** ${info.children.join(", ")}`);
+          sections.push(`**Children:** ${info.children.join(", ")}`);
         }
 
         return {
-          contents: lines.join("\n"),
+          contents: sections.join("\n\n"),
           range: offsetsToRange(document.text, node.startOffset, node.endOffset),
         };
       }
     }
 
     // Fallback: structural info from the document tree
-    const lines: string[] = [`### <${node.name}>`];
+    const sections: string[] = [`### \`<${node.name}>\``];
     if (node.attributes.length > 0) {
-      lines.push(`**Attributes:** ${node.attributes.length}`);
-      for (const attr of node.attributes) {
-        lines.push(`- \`${attr.name}="${attr.value ?? ""}"\``);
-      }
+      const attrLines = node.attributes
+        .map((attr: any) => `- \`${attr.name}="${attr.value ?? ""}"\``)
+        .join("\n");
+      sections.push(`**Attributes:**\n${attrLines}`);
     }
-    lines.push(`**Children:** ${node.children.length}`);
+    sections.push(`**Children:** ${node.children.length}`);
     return {
-      contents: lines.join("\n"),
+      contents: sections.join("\n\n"),
       range: offsetsToRange(document.text, node.startOffset, node.endOffset),
     };
   }

@@ -3,6 +3,41 @@ import { XMLDocument } from "../parser/xmlNode.js";
 import { XsdCompletionProvider } from "./xsdCompletionProvider.js";
 import { SchemaAssociator, SchemaAssociation, ResolvedSchema } from "./schemaAssociator.js";
 
+// Resolves a relative schemaLocation against a current file's path (both relative to
+// the entry schema's directory).  Handles ../ and ./ segments via standard URI resolution.
+function resolveRelativePath(basePath: string, location: string): string {
+  const parts = basePath.split("/");
+  parts.pop(); // drop filename, keep directory segments
+  for (const seg of location.split("/")) {
+    if (seg === "..") parts.pop();
+    else if (seg !== ".") parts.push(seg);
+  }
+  return parts.join("/");
+}
+
+// Inlines xs:include / xs:redefine references into a single flat XSD string.
+// `currentPath` is the path of `text` relative to the entry schema's directory.
+// Uses `visited` to break cycles.
+function inlineIncludes(
+  text: string,
+  imports: Record<string, string>,
+  currentPath: string = "",
+  visited: Set<string> = new Set(),
+): string {
+  return text.replace(
+    /<xs:(?:include|redefine)\s+schemaLocation\s*=\s*"([^"]+)"\s*(?:\/>|>[\s\S]*?<\/xs:(?:include|redefine)>)/g,
+    (_match, location: string) => {
+      const resolved = resolveRelativePath(currentPath || "entry.xsd", location);
+      const content = imports[resolved];
+      if (!content || visited.has(resolved)) return "";
+      visited.add(resolved);
+      const expanded = inlineIncludes(content, imports, resolved, visited);
+      const body = expanded.match(/<xs:schema\b[^>]*>([\s\S]*)<\/xs:schema>/);
+      return body ? body[1] : "";
+    },
+  );
+}
+
 export { SchemaAssociation, ResolvedSchema };
 
 /**
@@ -37,16 +72,22 @@ export class SchemaProvider {
    */
   async registerSchema(info: SchemaInfo): Promise<void> {
     const existing = this.schemas.get(info.uri);
-    if (existing) {
-      existing.dispose();
-    }
+    if (existing) existing.dispose();
+
     const xsd: XsdInput = info.imports
       ? { entry: info.xsdText, imports: info.imports }
       : info.xsdText;
     const validator = await XsdValidatorService.create(xsd);
     this.schemas.set(info.uri, validator);
 
-    this.completionProviders.set(info.uri, new XsdCompletionProvider(info.xsdText));
+    // Build the completion provider from the fully inlined XSD so that types
+    // defined in xs:include'd schemas are available for hover and completions.
+    const completionXsd = info.imports
+      ? inlineIncludes(info.xsdText, info.imports)
+      : info.xsdText;
+    const provider = new XsdCompletionProvider(completionXsd);
+    console.error(`[schemaProvider] Built provider for ${info.uri}: ${provider.getAllElements().length} elements, payloadFactory=${provider.getElement("payloadFactory") !== undefined}, inlinedXsdLen=${completionXsd.length}`);
+    this.completionProviders.set(info.uri, provider);
   }
 
   /** Registers a custom file-to-schema mapping that takes priority over built-in associations. */
@@ -65,6 +106,13 @@ export class SchemaProvider {
    * Returns null if no matching schema is found.
    */
   resolveSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): XsdCompletionProvider | null {
+    // Prefer the completion provider that was built during registerSchema (which has
+    // all xs:include content inlined).  diagnosticsHandler registers under auto://<path>.
+    if (documentPath) {
+      const registered = this.completionProviders.get(`auto://${documentPath}`);
+      if (registered) return registered;
+    }
+
     const cacheKey = `${documentPath ?? fileName}|${xmlns ?? ""}`;
     const cached = this.completionProviders.get(cacheKey);
     if (cached) return cached;
@@ -72,9 +120,11 @@ export class SchemaProvider {
     const resolved = this.associator.findSchema(fileName, xmlns, documentPath);
     if (!resolved) return null;
 
-    const provider = new XsdCompletionProvider(resolved.xsdText);
-    this.completionProviders.set(cacheKey, provider);
-    return provider;
+    // Build a provider from the raw XSD text (no xs:include inlining). This is a
+    // partial provider used only when the auto:// provider is not ready yet. It is
+    // intentionally NOT cached so that once validateAndSend registers the full
+    // auto:// provider it is used immediately on the next request.
+    return new XsdCompletionProvider(resolved.xsdText);
   }
 
   /**
@@ -101,6 +151,21 @@ export class SchemaProvider {
   /** Returns true when a compiled validator for the given URI exists in the registry. */
   hasSchema(uri: string): boolean {
     return this.schemas.has(uri);
+  }
+
+  /** Removes all auto:// schemas so they are re-registered fresh on next validation. */
+  invalidateAutoSchemas(): void {
+    for (const [key, validator] of this.schemas) {
+      if (key.startsWith("auto://")) {
+        validator.dispose();
+        this.schemas.delete(key);
+      }
+    }
+    for (const key of this.completionProviders.keys()) {
+      if (key.startsWith("auto://")) {
+        this.completionProviders.delete(key);
+      }
+    }
   }
 
   /** Disposes all registered validators and clears the registry. */

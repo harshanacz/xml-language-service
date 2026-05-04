@@ -10,6 +10,7 @@ export interface SchemaAssociation {
 
 export interface ResolvedSchema {
   xsdText: string;
+  xsdPath: string;
   source: "builtin" | "custom";
 }
 
@@ -50,35 +51,58 @@ export class SchemaAssociator {
    */
   findSchema(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
     for (const assoc of this.userAssociations) {
-      if (this.matchesPattern(fileName, assoc.pattern)) {
+      if (this.matchesPattern(fileName, assoc.pattern, documentPath)) {
         const xsdText = this.readXsdFile(assoc.xsdPath);
         if (xsdText === null) return null;
-        return { xsdText, source: "custom" };
+        return { xsdText, xsdPath: assoc.xsdPath, source: "custom" };
       }
     }
 
     for (const assoc of this.builtInAssociations) {
       if (
-        this.matchesPattern(fileName, assoc.pattern) ||
+        this.matchesPattern(fileName, assoc.pattern, documentPath) ||
         (xmlns !== undefined && assoc.namespace === xmlns)
       ) {
         const xsdText = this.readXsdFile(assoc.xsdPath);
         if (xsdText === null) return null;
-        return { xsdText, source: "builtin" };
+        return { xsdText, xsdPath: assoc.xsdPath, source: "builtin" };
       }
     }
 
     return null;
   }
 
-  /**
-   * Returns true if fileName matches the given glob-like pattern.
-   * Supports exact match ('pom.xml') and suffix match ('**\/*.xml').
-   */
-  private matchesPattern(fileName: string, pattern: string): boolean {
+  private matchesPattern(fileName: string, pattern: string, documentPath?: string): boolean {
     if (fileName === pattern) return true;
+    if (documentPath && this.globMatches(pattern, documentPath)) return true;
+    // Fallback for simple **/*.ext patterns — match by filename suffix alone.
     const stripped = pattern.replace(/^\*\*\//, "");
-    return fileName.endsWith(stripped);
+    return !stripped.includes("/") && fileName.endsWith(stripped);
+  }
+
+  // Converts a glob pattern to a RegExp and tests it against filePath.
+  // Supports * (single-segment wildcard) and ** (multi-segment wildcard).
+  private globMatches(glob: string, filePath: string): boolean {
+    let re = "";
+    let i = 0;
+    while (i < glob.length) {
+      const ch = glob[i];
+      if (ch === "*" && glob[i + 1] === "*") {
+        re += ".*";
+        i += 2;
+        if (glob[i] === "/") i++;
+      } else if (ch === "*") {
+        re += "[^/]*";
+        i++;
+      } else if (ch === "?") {
+        re += "[^/]";
+        i++;
+      } else {
+        re += ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+        i++;
+      }
+    }
+    return new RegExp(`(^|/)${re}$`).test(filePath);
   }
 
   /** Reads and returns the content of an XSD file, or null if not found. */

@@ -31,8 +31,12 @@ export class XsdCompletionProvider {
     const data = this.data;
     // Maps complexType name → direct child element names, for type-ref resolution.
     const complexTypeChildren = new Map<string, string[]>();
+    // Maps complexType name → attribute list, for type-ref attribute resolution.
+    const complexTypeAttributes = new Map<string, AttributeInfo[]>();
     // Maps element name → type attribute value, for post-walk resolution.
     const elementTypeRefs = new Map<string, string>();
+    // Maps attributeGroup name → { direct attrs, referenced group names }.
+    const rawGroups = new Map<string, { attrs: AttributeInfo[]; refs: string[] }>();
 
     function getAttrValue(node: any, attrName: string): string {
       for (const attr of node.children?.attribute ?? []) {
@@ -110,6 +114,85 @@ export class XsdCompletionProvider {
       return names;
     }
 
+    // Pre-pass: collect a single top-level attributeGroup definition.
+    function collectAttributeGroup(node: any): void {
+      const tag = getTagName(node);
+      if (!isXsdTag(tag, "attributeGroup")) return;
+      const name = getAttrValue(node, "name");
+      if (!name) return;
+      const attrs: AttributeInfo[] = [];
+      const refs: string[] = [];
+      for (const c of node.children?.content ?? []) {
+        for (const cc of c.children?.element ?? []) {
+          const cTag = getTagName(cc);
+          if (isXsdTag(cTag, "attribute")) {
+            const attrName = getAttrValue(cc, "name");
+            if (attrName) {
+              attrs.push({
+                name: attrName,
+                description: findDocumentation(cc),
+                type: getAttrValue(cc, "type"),
+                required: getAttrValue(cc, "use") === "required",
+              });
+            }
+          } else if (isXsdTag(cTag, "attributeGroup")) {
+            const ref = getAttrValue(cc, "ref");
+            if (ref) refs.push(ref);
+          }
+        }
+      }
+      rawGroups.set(name, { attrs, refs });
+    }
+
+    // Collects all xs:attribute and xs:attributeGroup ref members declared directly
+    // inside a named complexType (used for xs:element type="X" attribute resolution).
+    function collectComplexTypeAttributes(node: any): AttributeInfo[] {
+      const attrs: AttributeInfo[] = [];
+      function collect(n: any): void {
+        const tag = getTagName(n);
+        if (isXsdTag(tag, "element")) return; // don't cross into nested element content
+        if (isXsdTag(tag, "attribute")) {
+          const attrName = getAttrValue(n, "name");
+          if (attrName && !attrs.find((a) => a.name === attrName)) {
+            attrs.push({
+              name: attrName,
+              description: findDocumentation(n),
+              type: getAttrValue(n, "type"),
+              required: getAttrValue(n, "use") === "required",
+            });
+          }
+        } else if (isXsdTag(tag, "attributeGroup")) {
+          const ref = getAttrValue(n, "ref");
+          if (ref) {
+            for (const attr of expandGroup(ref)) {
+              if (!attrs.find((a) => a.name === attr.name)) attrs.push(attr);
+            }
+          }
+        } else {
+          for (const c of n.children?.content ?? []) {
+            for (const cc of c.children?.element ?? []) collect(cc);
+          }
+        }
+      }
+      for (const c of node.children?.content ?? []) {
+        for (const cc of c.children?.element ?? []) collect(cc);
+      }
+      return attrs;
+    }
+
+    // Recursively expands an attributeGroup by name, resolving nested refs.
+    function expandGroup(groupName: string, visited = new Set<string>()): AttributeInfo[] {
+      if (visited.has(groupName)) return [];
+      visited.add(groupName);
+      const raw = rawGroups.get(groupName);
+      if (!raw) return [];
+      const result: AttributeInfo[] = [...raw.attrs];
+      for (const ref of raw.refs) {
+        result.push(...expandGroup(ref, new Set(visited)));
+      }
+      return result;
+    }
+
     function walk(node: any, parentElementName: string | null): void {
       const tagName = getTagName(node);
 
@@ -133,31 +216,26 @@ export class XsdCompletionProvider {
           return;
         }
 
-        // Only create a new entry for globally-declared elements (parentElementName === null).
-        // Locally-defined elements (nested inside another element's content model) must NOT
-        // pollute the top-level map — they would shadow global elements of the same name.
-        if (!data.elements.has(name)) {
-          if (parentElementName === null) {
-            data.elements.set(name, {
-              name,
-              description: findDocumentation(node),
-              attributes: [],
-              children: [],
-            });
-          } else {
-            // Nested inline element: add to parent's children but do not register globally.
-            const parent = data.elements.get(parentElementName);
-            if (parent && !parent.children.includes(name)) {
-              parent.children.push(name);
-            }
-            recurseChildren(node, parentElementName);
-            return;
-          }
+        // Multi-occurrence handling.  An element name can appear more than once in
+        // the merged schema: e.g. xquery.xsd declares a LOCAL <xs:element name="variable">
+        // unrelated to the global variable mediator.  We treat the FIRST occurrence
+        // that actually has a body (inline complexType / attributes) as authoritative;
+        // subsequent occurrences must NOT recurse into their bodies, or their attributes
+        // would leak onto the originally-registered element.
+        // A bare stub (e.g. <xs:element name="child"/> used as an inline child reference)
+        // does NOT count as the authoritative occurrence — a later global declaration
+        // with a body is allowed to populate the empty entry.
+        const existing = data.elements.get(name);
+        const existingIsPopulated =
+          !!existing && (existing.attributes.length > 0 || existing.children.length > 0);
+        if (!existing) {
+          data.elements.set(name, {
+            name,
+            description: findDocumentation(node),
+            attributes: [],
+            children: [],
+          });
         }
-
-        // Record any type reference for post-walk resolution.
-        const typeRef = getAttrValue(node, "type");
-        if (typeRef) elementTypeRefs.set(name, typeRef);
 
         if (parentElementName !== null) {
           const parent = data.elements.get(parentElementName);
@@ -165,6 +243,16 @@ export class XsdCompletionProvider {
             parent.children.push(name);
           }
         }
+
+        // Record any type reference for post-walk resolution.  This must run for
+        // populated duplicates too: e.g. a local <xs:element name="resource" type="APIResource">
+        // inside <api> is the authoritative declaration even though a registry-style
+        // <xs:element name="resource"> was registered first from common.xsd.
+        const typeRef = getAttrValue(node, "type");
+        if (typeRef) elementTypeRefs.set(name, typeRef);
+
+        // Skip recursing into duplicates whose original is already populated.
+        if (existingIsPopulated) return;
 
         recurseChildren(node, name);
       } else if (isXsdTag(tagName, "attribute")) {
@@ -181,12 +269,27 @@ export class XsdCompletionProvider {
           }
         }
         recurseChildren(node, parentElementName);
+      } else if (isXsdTag(tagName, "attributeGroup")) {
+        // Named attributeGroup declarations are handled in the pre-pass.
+        // Here we only handle ref="..." inside an element's complexType.
+        const ref = getAttrValue(node, "ref");
+        if (ref && parentElementName !== null) {
+          const parent = data.elements.get(parentElementName);
+          if (parent) {
+            for (const attr of expandGroup(ref)) {
+              if (!parent.attributes.find((a) => a.name === attr.name)) {
+                parent.attributes.push(attr);
+              }
+            }
+          }
+        }
       } else if (isXsdTag(tagName, "complexType")) {
-        // Top-level named complexType: snapshot its direct element children so
+        // Top-level named complexType: snapshot children and attributes so that
         // xs:element type="X" declarations can be resolved after the walk.
         const typeName = getAttrValue(node, "name");
         if (typeName && parentElementName === null) {
           complexTypeChildren.set(typeName, collectDirectElementNames(node));
+          complexTypeAttributes.set(typeName, collectComplexTypeAttributes(node));
         }
         // Always pass the current parent element name through.
         recurseChildren(node, parentElementName);
@@ -210,7 +313,17 @@ export class XsdCompletionProvider {
       }
     }
 
-    // Enter from document root → schema element → top-level XSD declarations
+    // Pre-pass: collect all top-level attributeGroup definitions so that
+    // xs:attributeGroup ref="..." can be expanded during the main walk.
+    for (const rootEl of cst.children?.element ?? []) {
+      for (const content of rootEl.children?.content ?? []) {
+        for (const child of content.children?.element ?? []) {
+          collectAttributeGroup(child);
+        }
+      }
+    }
+
+    // Main walk: enter from document root → schema element → top-level XSD declarations.
     for (const rootEl of cst.children?.element ?? []) {
       for (const content of rootEl.children?.content ?? []) {
         for (const child of content.children?.element ?? []) {
@@ -220,18 +333,26 @@ export class XsdCompletionProvider {
     }
 
     // Resolve xs:element type="X" references to xs:complexType name="X".
-    // This connects elements like <xs:element name="project" type="Model"> to
-    // the children collected from <xs:complexType name="Model">.
+    // Children from the complexType are merged in; attributes from the complexType
+    // replace any inline attributes collected during the walk (a type reference is
+    // authoritative for what attributes the element accepts).
     for (const [elementName, typeRef] of elementTypeRefs) {
       const localType = typeRef.includes(":") ? typeRef.split(":").pop()! : typeRef;
-      const children = complexTypeChildren.get(localType);
-      if (!children) continue;
       const element = data.elements.get(elementName);
       if (!element) continue;
-      for (const childName of children) {
-        if (!element.children.includes(childName)) {
-          element.children.push(childName);
+
+      const children = complexTypeChildren.get(localType);
+      if (children) {
+        for (const childName of children) {
+          if (!element.children.includes(childName)) {
+            element.children.push(childName);
+          }
         }
+      }
+
+      const ctAttrs = complexTypeAttributes.get(localType);
+      if (ctAttrs && ctAttrs.length > 0) {
+        element.attributes = ctAttrs;
       }
     }
   }

@@ -37,6 +37,8 @@ export class XsdCompletionProvider {
     const elementTypeRefs = new Map<string, string>();
     // Maps attributeGroup name → { direct attrs, referenced group names }.
     const rawGroups = new Map<string, { attrs: AttributeInfo[]; refs: string[] }>();
+    // Maps xs:group name → { direct element names, referenced group names }.
+    const rawElementGroups = new Map<string, { elements: string[]; refs: string[] }>();
 
     function getAttrValue(node: any, attrName: string): string {
       for (const attr of node.children?.attribute ?? []) {
@@ -86,7 +88,7 @@ export class XsdCompletionProvider {
     }
 
     // Collects the names of xs:element children reachable through
-    // xs:sequence / xs:all / xs:choice inside `node` (one level of elements only).
+    // xs:sequence / xs:all / xs:choice / xs:group inside `node`.
     function collectDirectElementNames(node: any): string[] {
       const names: string[] = [];
       function collect(n: any): void {
@@ -94,6 +96,13 @@ export class XsdCompletionProvider {
         if (isXsdTag(tag, "element")) {
           const childName = getAttrValue(n, "name") || getAttrValue(n, "ref");
           if (childName && !names.includes(childName)) names.push(childName);
+        } else if (isXsdTag(tag, "group")) {
+          const ref = getAttrValue(n, "ref");
+          if (ref) {
+            for (const name of expandElementGroup(ref)) {
+              if (!names.includes(name)) names.push(name);
+            }
+          }
         } else if (
           isXsdTag(tag, "sequence") ||
           isXsdTag(tag, "all") ||
@@ -189,6 +198,50 @@ export class XsdCompletionProvider {
       const result: AttributeInfo[] = [...raw.attrs];
       for (const ref of raw.refs) {
         result.push(...expandGroup(ref, new Set(visited)));
+      }
+      return result;
+    }
+
+    // Pre-pass: collect a single top-level xs:group definition (element groups).
+    function collectElementGroup(node: any): void {
+      const tag = getTagName(node);
+      if (!isXsdTag(tag, "group")) return;
+      const name = getAttrValue(node, "name");
+      if (!name) return;
+      const elements: string[] = [];
+      const refs: string[] = [];
+      function collect(n: any): void {
+        const t = getTagName(n);
+        if (isXsdTag(t, "element")) {
+          const eName = getAttrValue(n, "name") || getAttrValue(n, "ref");
+          if (eName && !elements.includes(eName)) elements.push(eName);
+          // Don't recurse into element bodies to avoid pulling in nested group refs.
+        } else if (isXsdTag(t, "group")) {
+          const ref = getAttrValue(n, "ref");
+          if (ref && !refs.includes(ref)) refs.push(ref);
+        } else {
+          for (const c of n.children?.content ?? []) {
+            for (const cc of c.children?.element ?? []) collect(cc);
+          }
+        }
+      }
+      for (const c of node.children?.content ?? []) {
+        for (const cc of c.children?.element ?? []) collect(cc);
+      }
+      rawElementGroups.set(name, { elements, refs });
+    }
+
+    // Recursively expands an xs:group by name, resolving nested group refs.
+    function expandElementGroup(groupName: string, visited = new Set<string>()): string[] {
+      if (visited.has(groupName)) return [];
+      visited.add(groupName);
+      const raw = rawElementGroups.get(groupName);
+      if (!raw) return [];
+      const result: string[] = [...raw.elements];
+      for (const ref of raw.refs) {
+        for (const name of expandElementGroup(ref, new Set(visited))) {
+          if (!result.includes(name)) result.push(name);
+        }
       }
       return result;
     }
@@ -293,6 +346,25 @@ export class XsdCompletionProvider {
         }
         // Always pass the current parent element name through.
         recurseChildren(node, parentElementName);
+      } else if (isXsdTag(tagName, "group")) {
+        const ref = getAttrValue(node, "ref");
+        if (ref) {
+          // Reference: expand the group and wire element names to the parent.
+          if (parentElementName !== null) {
+            const parent = data.elements.get(parentElementName);
+            if (parent) {
+              for (const name of expandElementGroup(ref)) {
+                if (!parent.children.includes(name)) parent.children.push(name);
+              }
+            }
+          }
+          // No body to recurse into for a reference node.
+        } else {
+          // Named definition: recurse so that inline xs:element declarations inside
+          // the group (e.g. the inline "sequence" in mediatorList) are registered in
+          // data.elements with their attributes.
+          recurseChildren(node, parentElementName);
+        }
       } else if (
         isXsdTag(tagName, "sequence") ||
         isXsdTag(tagName, "all") ||
@@ -313,12 +385,13 @@ export class XsdCompletionProvider {
       }
     }
 
-    // Pre-pass: collect all top-level attributeGroup definitions so that
-    // xs:attributeGroup ref="..." can be expanded during the main walk.
+    // Pre-pass: collect all top-level attributeGroup and xs:group definitions so that
+    // ref="..." usages can be expanded during the main walk.
     for (const rootEl of cst.children?.element ?? []) {
       for (const content of rootEl.children?.content ?? []) {
         for (const child of content.children?.element ?? []) {
           collectAttributeGroup(child);
+          collectElementGroup(child);
         }
       }
     }

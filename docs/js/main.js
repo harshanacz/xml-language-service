@@ -43,12 +43,18 @@
 
   function openSidebar()  { sidebar && sidebar.classList.add('open');    overlay && overlay.classList.add('show'); }
   function closeSidebar() { sidebar && sidebar.classList.remove('open'); overlay && overlay.classList.remove('show'); }
+  function toggleSidebar() {
+    if (sidebar && sidebar.classList.contains('open')) closeSidebar();
+    else openSidebar();
+  }
 
-  toggle  && toggle.addEventListener('click', openSidebar);
+  toggle  && toggle.addEventListener('click', toggleSidebar);
   overlay && overlay.addEventListener('click', closeSidebar);
 
   /* ─── Copy buttons ─────────────────────────────────────────────────────── */
   document.querySelectorAll('.copy-btn').forEach(btn => {
+    if (!btn.innerHTML.trim()) btn.innerHTML = svgCopy();
+
     btn.addEventListener('click', () => {
       const target = btn.closest('.code-wrap, .hero-install');
       const code = target

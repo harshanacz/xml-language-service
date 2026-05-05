@@ -5,12 +5,12 @@ import { offsetToPosition } from "../utils/positionUtils.js";
 export interface FoldingRange {
   startLine: number;
   endLine: number;
-  kind: "region";
+  kind: "region" | "comment";
 }
 
 /**
  * Returns a flat list of FoldingRange objects for every multi-line, non-self-closing element
- * in the XML document tree.
+ * and multi-line comment in the XML document tree.
  */
 export function getFoldingRanges(document: XMLDocument): FoldingRange[] {
   const result: FoldingRange[] = [];
@@ -20,6 +20,15 @@ export function getFoldingRanges(document: XMLDocument): FoldingRange[] {
 
 function collectRanges(nodes: XMLNode[], text: string, result: FoldingRange[]): void {
   for (const node of nodes) {
+    if (node.type === "comment") {
+      const startLine = offsetToPosition(text, node.startOffset).line;
+      const endLine = offsetToPosition(text, node.endOffset).line;
+      if (startLine < endLine) {
+        result.push({ startLine, endLine, kind: "comment" });
+      }
+      continue;
+    }
+
     if (node.type !== "element" || node.isSelfClosing) continue;
     const startLine = offsetToPosition(text, node.startOffset).line;
     const endLine = offsetToPosition(text, node.endOffset).line;

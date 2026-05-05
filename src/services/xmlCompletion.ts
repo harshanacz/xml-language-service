@@ -28,7 +28,7 @@ export function doComplete(
   const offset = positionToOffset(document.text, position);
   const textBefore = document.text.substring(0, offset);
 
-  // Context 3: cursor is right after '</'
+  // Context: cursor is right after '</'
   if (/<\/$/.test(textBefore)) {
     const node = document.findNodeAt(offset);
     if (node && node.type === "element" && node.name) {
@@ -40,7 +40,7 @@ export function doComplete(
     return { items: [], isIncomplete: false };
   }
 
-  // Context 1: cursor is right after '<' or '<' + partial tag name (no space yet)
+  // Context: cursor is right after '<' or '<' + partial tag name (no space yet)
   if (/<\w*$/.test(textBefore)) {
     if (schemaProvider?.hasData()) {
       const node = document.findNodeAt(offset);
@@ -99,7 +99,7 @@ export function doComplete(
     };
   }
 
-  // Context 2: cursor is inside an open tag (attribute position).
+  // Context: cursor is inside an open tag (attribute position).
   // Use lastIndexOf('<') so this fires even after completed attribute values like
   // '<log level="full" |' where the old \w+\s+\w*$ regex would miss the quote boundary.
   const lastOpenAngle = textBefore.lastIndexOf("<");

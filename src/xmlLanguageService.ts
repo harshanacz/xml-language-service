@@ -1,5 +1,6 @@
 import { parseXMLDocument } from "./parser/xmlParser.js";
 import { XMLDocument } from "./parser/xmlNode.js";
+import { printAST, printCST, PrintOptions } from "./utils/xmlPrinter.js";
 import { Position } from "./utils/positionUtils.js";
 import { doComplete, CompletionList } from "./services/xmlCompletion.js";
 import { doHover, HoverResult } from "./services/xmlHover.js";
@@ -56,6 +57,16 @@ export function getLanguageService() {
 
     findReferences(document: XMLDocument, position: Position): ReferenceResult[] {
       return findReferences(document, position);
+    },
+
+    // ── Debug / Inspection ───────────────────────────────────────────────────
+
+    printAST(document: XMLDocument, options?: PrintOptions): string {
+      return printAST(document, options);
+    },
+
+    printCST(document: XMLDocument, options?: PrintOptions): string {
+      return printCST(document, options);
     },
 
     // ── Phase 02 — XSD Schema Validation ────────────────────────────────────

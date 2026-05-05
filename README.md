@@ -1,4 +1,11 @@
-# xml-language-service
+<h1 align="center">XML Language Service</h1>
+
+<p align="center"><strong>0% Java - 100% TypeScript</strong></p>
+
+<p align="center">
+  <strong>Language server powered by this package:</strong>
+  <a href="https://github.com/harshanacz/xml-language-server">xml-language-server</a>
+</p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/xml-language-service">
@@ -13,9 +20,7 @@
   <img src="https://img.shields.io/node/v/xml-language-service" alt="node version" />
 </p>
 
-Editor-agnostic XML language service for JavaScript and TypeScript projects. It gives you fault-tolerant XML parsing, completions, hover text, document symbols, folding, formatting, rename, definition, references, and XSD validation powered by Apache Xerces-C++ compiled to WebAssembly.
-
-Use it in editor extensions, language servers, CLIs, web tooling, test utilities, or any project that needs XML intelligence without a Java runtime or native installation step.
+This tool helps you work with XML in JavaScript and TypeScript projects. It can understand XML even if it has errors, and it gives features like auto complete, hover info, formatting, renaming tags, finding definitions, and validating with XSD. You can use it in editors, language servers, CLI tools, web apps, or tests.. without needing Java or installing native software.
 
 ## Links
 
@@ -25,6 +30,7 @@ Use it in editor extensions, language servers, CLIs, web tooling, test utilities
 | Documentation | https://harshanacz.github.io/xml-language-service/ |
 | Repository | https://github.com/harshanacz/xml-language-service |
 | Issues | https://github.com/harshanacz/xml-language-service/issues |
+| Project using this | https://github.com/harshanacz/xml-review-bot-demo |
 
 ## Install
 

@@ -1,6 +1,6 @@
 import { parseXMLDocument } from "./parser/xmlParser.js";
+import { printAST, printCST, printTreeAST, PrintOptions } from "./utils/xmlPrinter.js";
 import { XMLDocument } from "./parser/xmlNode.js";
-import { printAST, printCST, PrintOptions } from "./utils/xmlPrinter.js";
 import { Position } from "./utils/positionUtils.js";
 import { doComplete, CompletionList } from "./services/xmlCompletion.js";
 import { doHover, HoverResult } from "./services/xmlHover.js";
@@ -67,6 +67,10 @@ export function getLanguageService() {
 
     printCST(document: XMLDocument, options?: PrintOptions): string {
       return printCST(document, options);
+    },
+
+    printTreeAST(document: XMLDocument): string {
+      return printTreeAST(document);
     },
 
     // ── Phase 02 — XSD Schema Validation ────────────────────────────────────

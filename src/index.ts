@@ -17,7 +17,7 @@ export { DefinitionResult } from "./services/xmlDefinition.js";
 export { ReferenceResult } from "./services/xmlReferences.js";
 
 // Debug / inspection utilities
-export { printAST, printCST, PrintOptions, PrintFormat } from "./utils/xmlPrinter.js";
+export { printAST, printCST, printTreeAST, PrintOptions, PrintFormat } from "./utils/xmlPrinter.js";
 
 // Phase 02 schema validation types
 export { Diagnostic, SchemaBundle, XsdInput, XmlInput, XsdValidatorService } from "./schema/xsdValidator.js";

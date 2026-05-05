@@ -1,5 +1,32 @@
 import { XMLDocument, XMLNode, XMLAttribute } from "../parser/xmlNode.js";
 
+// ── Tree-style ────────────────────────────────────────────────────────────────
+
+/**
+ * Renders the AST as a terminal-style tree using box-drawing characters,
+ * identical to the `tree` command output.
+ *
+ * Example:
+ *   Document
+ *   └── root
+ *       ├── child
+ *       └── sibling
+ */
+export function printTreeAST(document: XMLDocument): string {
+  const lines: string[] = ["Document"];
+  renderTreeNodes(document.children.filter((c) => c.type === "element"), "", lines);
+  return lines.join("\n");
+}
+
+function renderTreeNodes(nodes: XMLNode[], prefix: string, lines: string[]): void {
+  nodes.forEach((node, i) => {
+    const isLast = i === nodes.length - 1;
+    lines.push(prefix + (isLast ? "└── " : "├── ") + (node.name ?? node.type));
+    const childPrefix = prefix + (isLast ? "    " : "│   ");
+    renderTreeNodes(node.children.filter((c) => c.type === "element"), childPrefix, lines);
+  });
+}
+
 export type PrintFormat = "tree" | "json";
 
 export interface PrintOptions {

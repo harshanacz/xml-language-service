@@ -1,6 +1,6 @@
 {
   "name": "xml-language-service",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Editor-agnostic XML language service with fault-tolerant parsing, XSD validation (Xerces-C++ WASM), completions, hover, symbols, folding, formatting, rename, definition and references.",
   "type": "module",
   "main": "dist/index.js",

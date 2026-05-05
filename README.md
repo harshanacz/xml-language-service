@@ -20,6 +20,7 @@ The interesting part: XSD validation is powered by **Apache Xerces-C++ compiled 
 | **Definition** | Jump between matching open/close tags |
 | **References** | Find all elements with the same tag name |
 | **XSD Validation** | Syntax + schema errors in one pass via Xerces WASM, works on malformed XML |
+| **CST/AST Printer** | Pretty-print the parse tree in tree or JSON format for debugging and testing |
 
 ---
 
@@ -91,6 +92,56 @@ Custom schemas and patterns can be registered with `addUserAssociation()`.
 
 ---
 
+## Debug: CST / AST Printer
+
+Two opt-in utilities let you inspect what the parser produced. They have no effect on normal LSP performance and are only called when you invoke them explicitly.
+
+```typescript
+import { parseXMLDocument, printAST, printCST } from "xml-language-service";
+
+const doc = parseXMLDocument("file:///my.xml", `<root><item id="1"/></root>`);
+
+// Tree format (default)
+console.log(printAST(doc));
+// Document
+//   Element <root>
+//     Element <item> /
+//       Attribute id="1"
+
+// With character offsets
+console.log(printAST(doc, { includePositions: true }));
+// Document [0..26]
+//   Element <root> [0..26]
+//     Element <item> / [6..17]
+//       Attribute id="1" [12..14]
+
+// JSON — stable for snapshot tests
+const tree = JSON.parse(printAST(doc, { format: "json" }));
+
+// Raw Chevrotain grammar rules and tokens
+console.log(printCST(doc));
+```
+
+Also available via the language service object:
+
+```typescript
+const svc = getLanguageService();
+const doc = svc.parseXMLDocument("file:///my.xml", xmlText);
+svc.printAST(doc);
+svc.printCST(doc);
+```
+
+### `PrintOptions`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `format` | `"tree" \| "json"` | `"tree"` | Output format |
+| `indent` | `number` | `2` | Spaces per indent level |
+| `includePositions` | `boolean` | `false` | Append `[start..end]` offsets to every node |
+| `includeTokens` | `boolean` | `true` | Show raw tokens in CST output |
+
+---
+
 ## Architecture
 
 ```
@@ -139,7 +190,8 @@ src/
 │   └── xerces_validator.wasm    ← compiled Xerces-C++
 └── utils/
     ├── positionUtils.ts
-    └── rangeUtils.ts
+    ├── rangeUtils.ts
+    └── xmlPrinter.ts        ← printAST / printCST debug utilities
 ```
 
 ---
@@ -154,4 +206,4 @@ npm run test:run    # run all tests once
 npm test            # watch mode tests
 ```
 
-**208 tests — 16 test files**
+**278 tests — 17 test files**

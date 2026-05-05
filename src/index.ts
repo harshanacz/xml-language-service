@@ -16,6 +16,9 @@ export { TextEdit, FormatterOptions } from "./services/xmlFormatter.js";
 export { DefinitionResult } from "./services/xmlDefinition.js";
 export { ReferenceResult } from "./services/xmlReferences.js";
 
+// Debug / inspection utilities
+export { printAST, printCST, PrintOptions, PrintFormat } from "./utils/xmlPrinter.js";
+
 // Phase 02 schema validation types
 export { Diagnostic, SchemaBundle, XsdInput, XmlInput, XsdValidatorService } from "./schema/xsdValidator.js";
 export { SchemaProvider, SchemaInfo, ResolvedSchema, SchemaAssociation } from "./schema/schemaProvider.js";

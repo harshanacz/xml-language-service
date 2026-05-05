@@ -12,11 +12,13 @@ export class XMLDocumentImpl implements XMLDocument {
   isSelfClosing: boolean = false;
   name: undefined = undefined;
   syntaxErrors: SyntaxError[];
+  readonly rawCST: unknown;
 
   constructor(uri: string, text: string, cst: any, lexErrors: any[] = [], parseErrors: any[] = []) {
     this.uri = uri;
     this.text = text;
     this.endOffset = text.length;
+    this.rawCST = cst;
     this.children = this.buildTree(cst);
     this.syntaxErrors = [
       ...lexErrors.map((e: any) => ({

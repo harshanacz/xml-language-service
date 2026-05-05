@@ -59,6 +59,11 @@
       <a class="sidebar-link" data-target="types" href="#">Types</a>
       <a class="sidebar-link" data-target="architecture" href="#">Architecture</a>
     </div>
+
+    <div class="sidebar-group">
+      <div class="sidebar-label">Debug</div>
+      <a class="sidebar-link" data-target="printer" href="#">AST / CST Printer</a>
+    </div>
   </aside>
 
   <main class="main">
@@ -445,6 +450,90 @@ const diagnostics = await ls.validate("file:///schema.xsd", doc);</code></pre>
       <div class="note note-warning">
         <strong>Validation is async.</strong>
         The WASM validator is loaded lazily on the first schema validation call.
+      </div>
+    </section>
+
+    <section class="doc-section two-column" data-section="printer">
+      <div>
+        <h2>AST / CST Printer</h2>
+        <p>
+          Two opt-in utilities let you inspect exactly what the parser produced.
+          Neither function affects normal LSP performance — they are only called
+          when you explicitly invoke them.
+        </p>
+        <ul class="clean-list">
+          <li><code>printAST(doc, options?)</code> — prints the <code>XMLNode</code> tree: elements, attributes, and self-closing markers.</li>
+          <li><code>printCST(doc, options?)</code> — prints the raw Chevrotain grammar rules and tokens captured during parsing.</li>
+          <li>Both accept <code>format: "tree"</code> (default) or <code>format: "json"</code>.</li>
+          <li><code>includePositions: true</code> adds <code>[start..end]</code> character offsets to every node.</li>
+          <li><code>includeTokens: false</code> hides raw syntax tokens from CST output, showing only rule names.</li>
+        </ul>
+        <p>
+          Available as standalone imports or via the language service object.
+          The JSON format is stable enough for snapshot-based tests.
+        </p>
+      </div>
+
+      <div>
+        <div class="code-wrap">
+          <div class="code-label">
+            <span>tree output — printAST</span>
+            <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+          </div>
+          <pre class="language-typescript"><code>import { parseXMLDocument, printAST, printCST } from "xml-language-service";
+
+const doc = parseXMLDocument(
+  "file:///my.xml",
+  `&lt;root&gt;&lt;item id="1"/&gt;&lt;/root&gt;`
+);
+
+console.log(printAST(doc));
+// Document
+//   Element &lt;root&gt;
+//     Element &lt;item&gt; /
+//       Attribute id="1"
+
+console.log(printAST(doc, { includePositions: true }));
+// Document [0..26]
+//   Element &lt;root&gt; [0..26]
+//     Element &lt;item&gt; / [6..17]
+//       Attribute id="1" [12..14]</code></pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-label">
+            <span>JSON format — snapshot testing</span>
+            <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+          </div>
+          <pre class="language-typescript"><code>const json = JSON.parse(printAST(doc, { format: "json" }));
+// {
+//   "type": "root",
+//   "uri": "file:///my.xml",
+//   "children": [{
+//     "type": "element",
+//     "name": "root",
+//     "children": [{
+//       "type": "element",
+//       "name": "item",
+//       "isSelfClosing": true,
+//       "attributes": [{ "name": "id", "value": "1" }]
+//     }]
+//   }]
+// }</code></pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-label">
+            <span>PrintOptions</span>
+            <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+          </div>
+          <pre class="language-typescript"><code>type PrintOptions = {
+  format?:           "tree" | "json"; // default "tree"
+  indent?:           number;          // default 2
+  includePositions?: boolean;         // default false
+  includeTokens?:    boolean;         // default true (CST only)
+}</code></pre>
+        </div>
       </div>
     </section>
 

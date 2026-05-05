@@ -109,6 +109,7 @@ Common service methods:
 | `registerSchema(schema)` | Register an XSD schema or schema bundle. |
 | `validate(schemaUri, document)` | Validate a parsed document against a registered schema. |
 | `addUserAssociation(association)` | Associate schemas with file names, paths, or namespaces. |
+| `printTreeAST(document)` | Print the AST as a visual text tree (`├──`, `└──`). |
 | `printAST(document, options?)` | Print the parsed AST for debugging. |
 | `printCST(document, options?)` | Print the raw CST for debugging. |
 | `dispose()` | Release schema provider resources. |
@@ -173,25 +174,33 @@ You can register additional associations with `addUserAssociation()`.
 
 ## Debugging AST And CST Output
 
-Use `printAST()` and `printCST()` when you need to inspect parser output or create stable snapshot tests.
+Three functions let you inspect parser output, create snapshot tests, or understand the tree structure of any XML document.
 
 ```typescript
 import { getLanguageService } from "xml-language-service";
 
 const service = getLanguageService();
-
 const document = service.parseXMLDocument(
   "file:///catalog.xml",
   `<catalog><book id="bk101"/></catalog>`,
 );
 
+// Visual text tree — quick structural overview
+console.log(service.printTreeAST(document));
+// Document
+// └── catalog
+//     └── book
+
+// Full AST — includes attributes, text and comment nodes
 console.log(service.printAST(document));
 console.log(service.printAST(document, { includePositions: true }));
 console.log(service.printAST(document, { format: "json" }));
+
+// Raw CST — every grammar rule and token produced by the parser
 console.log(service.printCST(document));
 ```
 
-Print options:
+`printAST` and `printCST` accept these options:
 
 | Option | Type | Default |
 | --- | --- | --- |
@@ -199,6 +208,15 @@ Print options:
 | `indent` | `number` | `2` |
 | `includePositions` | `boolean` | `false` |
 | `includeTokens` | `boolean` | `true` |
+
+### Manual Debug Script
+
+A ready-made script at `tests/utils/manual.mjs` exercises all three printers against a sample XML document. Run it directly with Node — no test runner needed:
+
+```bash
+npm run build
+node tests/utils/manual.mjs
+```
 
 ## Architecture
 

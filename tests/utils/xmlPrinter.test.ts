@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
-import { printAST, printCST } from "../../src/utils/xmlPrinter.js";
+import { printAST, printCST, printTreeAST } from "../../src/utils/xmlPrinter.js";
 
 const uri = "file:///test.xml";
 
@@ -10,7 +10,6 @@ const multiAttrXML = `<root><input type="text" required="true"/>  </root>`;
 const deepXML = `<a><b><c><d/></c></b></a>`;
 const brokenXML = `<root><unclosed>`;
 const emptyXML = ``;
-const multilineXML = `<root>\n  <child name="test"/>\n</root>`;
 
 // ── printAST ─────────────────────────────────────────────────────────────────
 
@@ -251,6 +250,67 @@ describe("printCST — JSON format", () => {
   it("does not crash on broken XML", () => {
     const doc = parseXMLDocument(uri, brokenXML);
     expect(() => printCST(doc, { format: "json" })).not.toThrow();
+  });
+});
+
+// ── printTreeAST ──────────────────────────────────────────────────────────────
+
+describe("printTreeAST", () => {
+  it("starts with Document", () => {
+    const doc = parseXMLDocument(uri, simpleXML);
+    expect(printTreeAST(doc)).toMatch(/^Document/);
+  });
+
+  it("contains element names", () => {
+    const doc = parseXMLDocument(uri, simpleXML);
+    const out = printTreeAST(doc);
+    expect(out).toContain("root");
+    expect(out).toContain("item");
+  });
+
+  it("uses └── for the last child", () => {
+    const doc = parseXMLDocument(uri, simpleXML);
+    expect(printTreeAST(doc)).toContain("└──");
+  });
+
+  it("uses ├── for non-last siblings", () => {
+    const doc = parseXMLDocument(uri, `<root><a/><b/><c/></root>`);
+    const out = printTreeAST(doc);
+    expect(out).toContain("├──");
+    expect(out).toContain("└──");
+  });
+
+  it("uses │ continuation prefix for nested children", () => {
+    const doc = parseXMLDocument(uri, `<root><a><x/></a><b/></root>`);
+    expect(printTreeAST(doc)).toContain("│");
+  });
+
+  it("does not crash on empty XML", () => {
+    const doc = parseXMLDocument(uri, emptyXML);
+    expect(() => printTreeAST(doc)).not.toThrow();
+    expect(printTreeAST(doc)).toMatch(/^Document/);
+  });
+
+  it("does not crash on broken XML", () => {
+    const doc = parseXMLDocument(uri, brokenXML);
+    expect(() => printTreeAST(doc)).not.toThrow();
+  });
+
+  it("handles deeply nested XML", () => {
+    const doc = parseXMLDocument(uri, deepXML);
+    const out = printTreeAST(doc);
+    expect(out).toContain("a");
+    expect(out).toContain("b");
+    expect(out).toContain("d");
+  });
+
+  it("exposes printTreeAST via getLanguageService()", async () => {
+    const { getLanguageService } = await import("../../src/xmlLanguageService.js");
+    const svc = getLanguageService();
+    const doc = svc.parseXMLDocument(uri, simpleXML);
+    const out = svc.printTreeAST(doc);
+    expect(out).toMatch(/^Document/);
+    expect(out).toContain("└──");
   });
 });
 

@@ -94,6 +94,12 @@ export class XMLDocumentImpl implements XMLDocument {
     return node;
   }
 
+  /**
+   * Traverses the entire AST in a depth-first manner.
+   * NOTE: This is NOT used for standard operations like finding the current node (which uses offsets).
+   * Full traversal is primarily used as a fallback to gather all document elements/attributes 
+   * for "smart suggestions" in autocompletion when an XSD schema is unavailable.
+   */
   traverse(callback: (node: XMLNode) => void): void {
     this.traverseNode(this, callback);
   }

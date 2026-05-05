@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>xml-language-service Docs</title>
-  <meta name="description" content="Simple docs for xml-language-service: completion, hover, symbols, folding, formatting, rename, definition, references, and XSD validation." />
+  <title>XML Language Service Docs</title>
+  <meta name="description" content="Clean documentation for XML Language Service, an XML helper library for JavaScript and TypeScript projects." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,7 +22,7 @@
 
     <a class="brand" href="#">
       <span class="brand-mark">&lt;/&gt;</span>
-      <span>xml-language-service</span>
+      <span>XML Language Service</span>
     </a>
 
     <span class="version">v0.1.0</span>
@@ -38,43 +38,25 @@
 
   <aside class="sidebar" aria-label="Docs navigation">
     <div class="sidebar-group">
-      <div class="sidebar-label">Start</div>
+      <div class="sidebar-label">Guide</div>
       <a class="sidebar-link" data-target="overview" href="#">Overview</a>
       <a class="sidebar-link" data-target="install" href="#">Install</a>
       <a class="sidebar-link" data-target="quickstart" href="#">Quick Start</a>
-    </div>
-
-    <div class="sidebar-group">
-      <div class="sidebar-label">Core</div>
-      <a class="sidebar-link" data-target="api" href="#">9 Features</a>
-      <a class="sidebar-link" data-target="logic" href="#">How It Works</a>
-      <a class="sidebar-link" data-target="symbols" href="#">Symbols</a>
-      <a class="sidebar-link" data-target="formatter" href="#">Formatter</a>
+      <a class="sidebar-link" data-target="features" href="#">Features</a>
       <a class="sidebar-link" data-target="validation" href="#">XSD Validation</a>
-    </div>
-
-    <div class="sidebar-group">
-      <div class="sidebar-label">Build</div>
-      <a class="sidebar-link" data-target="usecases" href="#">Use Cases</a>
-      <a class="sidebar-link" data-target="types" href="#">Types</a>
-      <a class="sidebar-link" data-target="architecture" href="#">Architecture</a>
-    </div>
-
-    <div class="sidebar-group">
-      <div class="sidebar-label">Debug</div>
-      <a class="sidebar-link" data-target="printer" href="#">AST / CST Printer</a>
+      <a class="sidebar-link" data-target="printer" href="#">Debugging</a>
+      <a class="sidebar-link" data-target="links" href="#">Links</a>
     </div>
   </aside>
 
   <main class="main">
     <section class="hero" data-section="overview">
-      <div class="hero-kicker">TypeScript XML intelligence for any JavaScript or TypeScript app</div>
-      <h1>Add XML-aware features to editors, tools, CLIs, and automation.</h1>
+      <div class="hero-kicker">XML tools for JavaScript and TypeScript</div>
+      <h1>XML Language Service</h1>
       <p class="hero-copy">
-        Parse XML once, then use nine XML features: completions, hover text,
-        document symbols, folding ranges, formatting edits, rename edits,
-        definitions, references, and XSD diagnostics. The package returns plain
-        TypeScript objects, so you decide how to show or apply the results.
+        This tool helps you work with XML in JavaScript and TypeScript projects.
+        It can understand XML even when it has errors, and it gives editor-like
+        features without needing Java or native software.
       </p>
 
       <div class="hero-install">
@@ -85,23 +67,23 @@
 
       <div class="status-grid" aria-label="Highlights">
         <div>
-          <strong>Editor agnostic</strong>
-          <span>Use it from an editor, web app, CLI, build step, or tests.</span>
+          <strong>Works anywhere</strong>
+          <span>Use it in editors, language servers, CLIs, web apps, and tests.</span>
         </div>
         <div>
-          <strong>Fault tolerant</strong>
-          <span>Broken XML still produces a partial document tree.</span>
+          <strong>Handles broken XML</strong>
+          <span>Incomplete XML still produces a usable document tree.</span>
         </div>
         <div>
-          <strong>XSD aware</strong>
-          <span>Xerces-C++ WASM handles schema validation.</span>
+          <strong>No Java setup</strong>
+          <span>XSD validation runs through bundled Xerces-C++ WebAssembly.</span>
         </div>
       </div>
     </section>
 
     <section class="doc-section" data-section="install">
       <h2>Install</h2>
-      <p>Install the package and use an ESM-compatible TypeScript setup.</p>
+      <p>Install the package in an ESM-compatible Node.js project.</p>
 
       <div class="code-wrap">
         <div class="code-label">
@@ -113,26 +95,13 @@
 
       <div class="note">
         <strong>Requires Node.js 18+.</strong>
-        The package includes the Xerces WASM assets. No native compiler setup is needed.
-      </div>
-
-      <div class="code-wrap">
-        <div class="code-label">
-          <span>tsconfig.json</span>
-          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
-        </div>
-        <pre class="language-json"><code>{
-  "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext"
-  }
-}</code></pre>
+        The package includes the WASM files needed for XSD validation.
       </div>
     </section>
 
     <section class="doc-section" data-section="quickstart">
       <h2>Quick Start</h2>
-      <p>Create one service instance, parse the XML, then call the features you need.</p>
+      <p>Create a service, parse XML, then call the feature you need.</p>
 
       <div class="code-wrap">
         <div class="code-label">
@@ -141,498 +110,141 @@
         </div>
         <pre class="language-typescript"><code>import { getLanguageService } from "xml-language-service";
 
-const ls = getLanguageService();
+const service = getLanguageService();
 
-const xml = `&lt;api name="MultiplyAPI"&gt;
-  &lt;resource&gt;
-    &lt;inSequence&gt;
-      &lt;property name="result"/&gt;
-    &lt;/inSequence&gt;
-  &lt;/resource&gt;
-&lt;/api&gt;`;
+const xml = `&lt;catalog&gt;
+  &lt;book id="bk101"&gt;
+    &lt;title&gt;XML Developer Guide&lt;/title&gt;
+  &lt;/book&gt;
+&lt;/catalog&gt;`;
 
-const doc = ls.parseXMLDocument("file:///api.xml", xml);
+const document = service.parseXMLDocument("file:///catalog.xml", xml);
 
-const completions = ls.doComplete(doc, { line: 1, character: 3 });
-const hover = ls.doHover(doc, { line: 2, character: 6 });
-const symbols = ls.findDocumentSymbols(doc);
-const [formatEdit] = ls.format(doc, { tabSize: 2, insertSpaces: true });
+const completions = service.doComplete(document, { line: 1, character: 4 });
+const hover = service.doHover(document, { line: 2, character: 6 });
+const symbols = service.findDocumentSymbols(document);
+const formatting = service.format(document, { tabSize: 2, insertSpaces: true });
 
-console.log(symbols[0].name); // "api (MultiplyAPI)"
+console.log(completions.items);
+console.log(hover);
+console.log(symbols);
+console.log(formatting);
 
-ls.dispose();</code></pre>
+service.dispose();</code></pre>
       </div>
     </section>
 
-    <section class="doc-section" data-section="api">
-      <h2>9 Features</h2>
+    <section class="doc-section" data-section="features">
+      <h2>Features</h2>
       <p>
-        Parsing is the foundation: every feature starts from an <code>XMLDocument</code>
-        created by <code>parseXMLDocument(uri, text)</code>. On top of that tree, the
-        library offers these nine features.
+        The service returns plain TypeScript objects, so you can connect these
+        features to your own editor, CLI, web app, language server, or test tool.
       </p>
 
       <div class="api-grid">
         <article class="method-card">
-          <h3>doComplete(document, position)</h3>
-          <p>Suggests element names, attributes, and matching close tags.</p>
+          <h3>Fault-tolerant parsing</h3>
+          <p>Reads XML and builds a usable document tree, even when the file is incomplete or has syntax errors.</p>
         </article>
         <article class="method-card">
-          <h3>doHover(document, position)</h3>
-          <p>Returns Markdown hover content for elements and comments.</p>
+          <h3>Auto complete</h3>
+          <p>Suggests element names, attributes, and closing tags while the user is typing.</p>
         </article>
         <article class="method-card">
-          <h3>findDocumentSymbols(document)</h3>
-          <p>Returns a nested symbol tree with readable labels and symbol kinds.</p>
+          <h3>Hover info</h3>
+          <p>Shows useful information for the XML element, attribute, or comment under the cursor.</p>
         </article>
         <article class="method-card">
-          <h3>getFoldingRanges(document)</h3>
-          <p>Returns collapsible ranges for multi-line elements.</p>
+          <h3>Document symbols</h3>
+          <p>Creates an outline of the XML structure so editors can show breadcrumbs, sidebars, and quick navigation.</p>
         </article>
         <article class="method-card">
-          <h3>format(document, options)</h3>
-          <p>Returns one full-document text edit with AST-guided indentation.</p>
+          <h3>Folding ranges</h3>
+          <p>Finds XML blocks that can be collapsed, such as large nested elements.</p>
         </article>
         <article class="method-card">
-          <h3>doRename(document, position, newName)</h3>
-          <p>Renames matching opening and closing tags together.</p>
-        </article>
-        <article class="method-card">
-          <h3>doDefinition(document, position)</h3>
-          <p>Jumps between matching open and close tag ranges.</p>
-        </article>
-        <article class="method-card">
-          <h3>findReferences(document, position)</h3>
-          <p>Finds elements with the same tag name across the document.</p>
-        </article>
-        <article class="method-card">
-          <h3>validate(schemaUri, document)</h3>
-          <p>Runs Xerces-backed XSD validation and returns diagnostics.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="doc-section" data-section="logic">
-      <h2>How Each Feature Works</h2>
-      <p>
-        The implementation matches the nine-feature list above. The parser is used
-        first, but it is treated as shared infrastructure: it builds the tree, keeps
-        exact source offsets, and lets the feature services return small result
-        objects without mutating the document.
-      </p>
-
-      <div class="note">
-        <strong>Foundation: parser.</strong>
-        <code>parseXMLDocument()</code> uses <code>@xml-tools/parser</code> to build
-        a fault-tolerant <code>XMLDocument</code>. The document stores nodes,
-        attributes, offsets, parent/child links, syntax errors, and helpers such as
-        <code>findNodeAt(offset)</code> and <code>traverse(callback)</code>.
-      </div>
-
-      <div class="feature-stack">
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 1</div>
-          <h3>Completion</h3>
-          <p>Provides context-aware suggestions while a user or tool is editing XML.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed <code>XMLDocument</code> and a zero-based cursor <code>Position</code>.</li>
-            <li><strong>How context is detected:</strong> the position is converted to an offset, then the service inspects the text before that offset.</li>
-            <li><strong>After <code>&lt;</code>:</strong> it suggests element names. If a schema provider has data, it suggests schema-valid children for the current parent. Without schema data, it scans the document tree and suggests element names already present in the XML.</li>
-            <li><strong>After <code>&lt;/</code>:</strong> it calls <code>document.findNodeAt(offset)</code> and suggests the current node's matching close tag.</li>
-            <li><strong>Inside an opening tag:</strong> it suggests attributes. With schema data, it returns XSD-defined attributes and their types. It also merges attributes already seen on the same tag name. Without schema data, it falls back to <code>xml:lang</code>, <code>xml:space</code>, and <code>xmlns</code>.</li>
-            <li><strong>Output:</strong> a <code>CompletionList</code> with <code>items</code>, <code>label</code>, <code>kind</code>, <code>insertText</code>, and optional <code>detail</code>.</li>
-          </ul>
-        </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 2</div>
-          <h3>Hover</h3>
-          <p>Displays useful information for the XML node under the cursor.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed document and cursor position.</li>
-            <li><strong>Node lookup:</strong> the position is converted to an offset, then <code>document.findNodeAt(offset)</code> returns the deepest node at that location.</li>
-            <li><strong>Without schema data:</strong> element hover shows the tag name, attributes with current values, and child count.</li>
-            <li><strong>With schema data:</strong> hover uses the resolved XSD provider to show schema documentation, valid attributes, attribute types, required flags, and valid child elements.</li>
-            <li><strong>Comments:</strong> comment nodes can return a comment hover. Root and plain text positions return <code>null</code>.</li>
-            <li><strong>Output:</strong> a <code>HoverResult</code> with Markdown <code>contents</code> and a <code>range</code> covering the relevant XML node.</li>
-          </ul>
-        </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 3</div>
-          <h3>Document Symbols</h3>
-          <p>Builds a hierarchical navigation tree for any client that needs an outline, breadcrumbs, search index, or structure view.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed XML document.</li>
-            <li><strong>Traversal:</strong> the service recursively walks <code>document.children</code> and then each child element's <code>children</code>.</li>
-            <li><strong>Labeling:</strong> symbol labels include identifying attributes in priority order: <code>name</code>, then <code>id</code>, then <code>key</code>. For example, <code>&lt;api name="MultiplyAPI"&gt;</code> becomes <code>api (MultiplyAPI)</code>.</li>
-            <li><strong>Hierarchy:</strong> child symbols are placed inside the parent symbol's <code>children</code> array, preserving the XML structure.</li>
-            <li><strong>Kind mapping:</strong> known XML and WSO2 MI elements are classified as kinds such as <code>class</code>, <code>method</code>, <code>function</code>, <code>property</code>, <code>array</code>, <code>struct</code>, <code>object</code>, and <code>field</code>.</li>
-            <li><strong>Navigation precision:</strong> <code>range</code> covers the full element, while <code>selectionRange</code> covers the opening tag name so navigation lands on the tag definition.</li>
-          </ul>
-        </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 4</div>
-          <h3>Folding Ranges</h3>
-          <p>Identifies XML regions that can be collapsed by an editor, viewer, or custom UI.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed document.</li>
-            <li><strong>Traversal:</strong> the service walks all element nodes recursively.</li>
-            <li><strong>Line calculation:</strong> node start and end offsets are converted to line numbers.</li>
-            <li><strong>Filtering:</strong> only multi-line, non-self-closing elements become folding ranges. Self-closing tags and same-line elements are skipped because collapsing them is not useful.</li>
-            <li><strong>Output:</strong> a flat <code>FoldingRange[]</code>, where each item has <code>startLine</code>, <code>endLine</code>, and <code>kind: "region"</code>.</li>
-          </ul>
-        </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 5</div>
           <h3>Formatting</h3>
-          <p>Formats XML with AST-guided indentation rather than a fragile line-by-line approach.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed document and formatting options: <code>tabSize</code> and <code>insertSpaces</code>.</li>
-            <li><strong>Core approach:</strong> the formatter walks parsed element nodes and uses exact source offsets to locate opening tags, closing tags, child regions, and loose content.</li>
-            <li><strong>Indentation:</strong> indentation level comes from node depth. The indent unit is either spaces from <code>tabSize</code> or a tab character when <code>insertSpaces</code> is false.</li>
-            <li><strong>One-line XML:</strong> nested one-line XML such as <code>&lt;root&gt;&lt;child/&gt;&lt;/root&gt;</code> expands into a readable multi-line structure.</li>
-            <li><strong>Attributes:</strong> attributes remain attached to the parent opening tag. Multi-line attributes are normalized onto the opening tag instead of being treated like child content.</li>
-            <li><strong>Mixed content:</strong> inline mixed content is preserved when changing whitespace could change meaning, such as <code>&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;!&lt;/p&gt;</code>.</li>
-            <li><strong>Output:</strong> one full-document <code>TextEdit</code>. The formatter never mutates the existing AST.</li>
-          </ul>
+          <p>Returns text edits that format XML with clean indentation and spacing.</p>
         </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 6</div>
+        <article class="method-card">
           <h3>Rename</h3>
-          <p>Renames XML tag pairs atomically by returning the exact text edits a client should apply.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed document, cursor position, and <code>newName</code>.</li>
-            <li><strong>Validation:</strong> empty names and names containing whitespace or angle brackets are rejected.</li>
-            <li><strong>Target lookup:</strong> the cursor position is converted to an offset, then the element under that offset is found.</li>
-            <li><strong>Opening tag edit:</strong> the opening tag name range starts after <code>&lt;</code> and spans the current element name.</li>
-            <li><strong>Closing tag edit:</strong> for non-self-closing elements, the service searches backward within the node range for <code>&lt;/currentName</code> and creates a second edit.</li>
-            <li><strong>Self-closing tags:</strong> only one edit is returned because there is no separate closing tag.</li>
-            <li><strong>Output:</strong> <code>TextEdit[]</code> or <code>null</code> when rename cannot apply.</li>
-          </ul>
+          <p>Renames matching opening and closing tags together so XML stays consistent.</p>
         </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 7</div>
-          <h3>Definition</h3>
-          <p>Provides tag-pair navigation between matching opening and closing tags.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed document and cursor position.</li>
-            <li><strong>Target lookup:</strong> the service finds the element under the cursor.</li>
-            <li><strong>Opening tag behavior:</strong> when the cursor is on the opening tag name, the service searches forward for the matching closing tag and returns that range.</li>
-            <li><strong>Closing tag behavior:</strong> when the cursor is on the closing side, it returns the opening tag range.</li>
-            <li><strong>Self-closing tags:</strong> return <code>null</code> because there is no paired tag to navigate to.</li>
-            <li><strong>Output:</strong> a <code>DefinitionResult</code> with document <code>uri</code> and target <code>range</code>, or <code>null</code>.</li>
-          </ul>
+        <article class="method-card">
+          <h3>Definition and references</h3>
+          <p>Jumps between matching tags and finds other elements with the same tag name.</p>
         </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 8</div>
-          <h3>References</h3>
-          <p>Finds all elements in the same document that share the selected tag name.</p>
-          <ul>
-            <li><strong>Input:</strong> a parsed document and cursor position.</li>
-            <li><strong>Target lookup:</strong> the service finds the element under the cursor and reads its tag name.</li>
-            <li><strong>Traversal:</strong> it calls <code>document.traverse(...)</code> and checks every element node.</li>
-            <li><strong>Matching:</strong> every element whose <code>name</code> equals the target tag name is returned, including the current element.</li>
-            <li><strong>Output:</strong> <code>ReferenceResult[]</code>, each with document <code>uri</code> and full element <code>range</code>.</li>
-          </ul>
+        <article class="method-card">
+          <h3>XSD validation</h3>
+          <p>Checks XML against XSD schemas using Apache Xerces-C++ compiled to WebAssembly.</p>
         </article>
-
-        <article class="feature-detail">
-          <div class="feature-meta">Feature 9</div>
-          <h3>XSD Validation</h3>
-          <p>Validates XML against registered schemas and returns diagnostics that clients can display or process.</p>
-          <ul>
-            <li><strong>Input:</strong> a registered schema URI and parsed document. The validator reads <code>document.text</code>.</li>
-            <li><strong>Registration:</strong> <code>registerSchema(...)</code> compiles a schema and stores it under a URI. If the same URI is registered again, the old validator is disposed and replaced.</li>
-            <li><strong>Engine:</strong> validation uses Apache Xerces-C++ compiled to WebAssembly.</li>
-            <li><strong>Why Xerces:</strong> Xerces validates with a SAX-style pass, so syntax and schema diagnostics can be reported together instead of requiring a perfect DOM first.</li>
-            <li><strong>Single XSD:</strong> pass <code>{ uri, xsdText }</code> to <code>registerSchema</code>.</li>
-            <li><strong>Multi-file XSD:</strong> pass an <code>imports</code> map whose keys match <code>schemaLocation</code> values used by <code>xs:include</code> or <code>xs:import</code>.</li>
-            <li><strong>Schema-aware support:</strong> the same registered or resolved XSD data can enrich completion and hover.</li>
-            <li><strong>Output:</strong> <code>Diagnostic[]</code> with <code>range</code>, <code>message</code>, <code>severity</code>, and <code>source</code>. Source is <code>syntax</code> for XML parse errors or <code>xsd</code> for schema violations.</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class="doc-section two-column" data-section="symbols">
-      <div>
-        <h2>Symbols</h2>
-        <p>
-          Symbols are hierarchical. Labels include identifying attributes such as
-          <code>name</code>, <code>id</code>, and <code>key</code>, which makes large
-          WSO2 MI files easier to scan.
-        </p>
-        <ul class="clean-list">
-          <li><code>&lt;api name="MultiplyAPI"&gt;</code> becomes <code>api (MultiplyAPI)</code>.</li>
-          <li><code>&lt;property name="result"/&gt;</code> becomes <code>property (result)</code>.</li>
-          <li>Children stay nested for Outline and Breadcrumb navigation.</li>
-        </ul>
-      </div>
-
-      <div class="code-wrap">
-        <div class="code-label">
-          <span>symbol result</span>
-          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
-        </div>
-        <pre class="language-typescript"><code>[
-  {
-    name: "api (MultiplyAPI)",
-    kind: "class",
-    children: [
-      {
-        name: "resource",
-        kind: "method",
-        children: [
-          { name: "property (result)", kind: "property" }
-        ]
-      }
-    ]
-  }
-]</code></pre>
-      </div>
-    </section>
-
-    <section class="doc-section two-column" data-section="formatter">
-      <div>
-        <h2>Formatter</h2>
-        <p>
-          Formatting is AST-guided. The formatter walks parsed nodes, uses node offsets
-          to rebuild tags, and respects <code>tabSize</code> plus <code>insertSpaces</code>.
-        </p>
-        <ul class="clean-list">
-          <li>Nested one-line XML expands into readable indentation.</li>
-          <li>Attributes stay attached to the opening tag.</li>
-          <li>Mixed inline text is preserved instead of being split apart.</li>
-        </ul>
-      </div>
-
-      <div class="code-wrap compare">
-        <div class="code-label">
-          <span>format example</span>
-          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
-        </div>
-        <pre class="language-xml"><code>&lt;root&gt;&lt;child&gt;&lt;leaf/&gt;&lt;/child&gt;&lt;/root&gt;</code></pre>
-        <pre class="language-xml"><code>&lt;root&gt;
-  &lt;child&gt;
-    &lt;leaf/&gt;
-  &lt;/child&gt;
-&lt;/root&gt;</code></pre>
       </div>
     </section>
 
     <section class="doc-section" data-section="validation">
       <h2>XSD Validation</h2>
-      <p>
-        Register schemas once, then validate parsed documents. Built-in schema association
-        can resolve known files, and schema bundles support <code>xs:include</code> and
-        <code>xs:import</code>.
-      </p>
+      <p>Register an XSD schema once, then validate parsed XML documents against it.</p>
 
       <div class="code-wrap">
         <div class="code-label">
           <span>typescript</span>
           <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
         </div>
-        <pre class="language-typescript"><code>await ls.registerSchema({
+        <pre class="language-typescript"><code>await service.registerSchema({
   uri: "file:///schema.xsd",
-  xsdText
+  xsdText: schemaText,
 });
 
-const diagnostics = await ls.validate("file:///schema.xsd", doc);</code></pre>
+const document = service.parseXMLDocument("file:///catalog.xml", xmlText);
+const diagnostics = await service.validate("file:///schema.xsd", document);</code></pre>
       </div>
 
-      <div class="note note-warning">
-        <strong>Validation is async.</strong>
-        The WASM validator is loaded lazily on the first schema validation call.
-      </div>
-    </section>
-
-    <section class="doc-section two-column" data-section="printer">
-      <div>
-        <h2>AST / CST Printer</h2>
-        <p>
-          Two opt-in utilities let you inspect exactly what the parser produced.
-          Neither function affects normal LSP performance — they are only called
-          when you explicitly invoke them.
-        </p>
-        <ul class="clean-list">
-          <li><code>printAST(doc, options?)</code> — prints the <code>XMLNode</code> tree: elements, attributes, and self-closing markers.</li>
-          <li><code>printCST(doc, options?)</code> — prints the raw Chevrotain grammar rules and tokens captured during parsing.</li>
-          <li>Both accept <code>format: "tree"</code> (default) or <code>format: "json"</code>.</li>
-          <li><code>includePositions: true</code> adds <code>[start..end]</code> character offsets to every node.</li>
-          <li><code>includeTokens: false</code> hides raw syntax tokens from CST output, showing only rule names.</li>
-        </ul>
-        <p>
-          Available as standalone imports or via the language service object.
-          The JSON format is stable enough for snapshot-based tests.
-        </p>
-      </div>
-
-      <div>
-        <div class="code-wrap">
-          <div class="code-label">
-            <span>tree output — printAST</span>
-            <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
-          </div>
-          <pre class="language-typescript"><code>import { parseXMLDocument, printAST, printCST } from "xml-language-service";
-
-const doc = parseXMLDocument(
-  "file:///my.xml",
-  `&lt;root&gt;&lt;item id="1"/&gt;&lt;/root&gt;`
-);
-
-console.log(printAST(doc));
-// Document
-//   Element &lt;root&gt;
-//     Element &lt;item&gt; /
-//       Attribute id="1"
-
-console.log(printAST(doc, { includePositions: true }));
-// Document [0..26]
-//   Element &lt;root&gt; [0..26]
-//     Element &lt;item&gt; / [6..17]
-//       Attribute id="1" [12..14]</code></pre>
-        </div>
-
-        <div class="code-wrap">
-          <div class="code-label">
-            <span>JSON format — snapshot testing</span>
-            <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
-          </div>
-          <pre class="language-typescript"><code>const json = JSON.parse(printAST(doc, { format: "json" }));
-// {
-//   "type": "root",
-//   "uri": "file:///my.xml",
-//   "children": [{
-//     "type": "element",
-//     "name": "root",
-//     "children": [{
-//       "type": "element",
-//       "name": "item",
-//       "isSelfClosing": true,
-//       "attributes": [{ "name": "id", "value": "1" }]
-//     }]
-//   }]
-// }</code></pre>
-        </div>
-
-        <div class="code-wrap">
-          <div class="code-label">
-            <span>PrintOptions</span>
-            <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
-          </div>
-          <pre class="language-typescript"><code>type PrintOptions = {
-  format?:           "tree" | "json"; // default "tree"
-  indent?:           number;          // default 2
-  includePositions?: boolean;         // default false
-  includeTokens?:    boolean;         // default true (CST only)
-}</code></pre>
-        </div>
-      </div>
-    </section>
-
-    <section class="doc-section" data-section="usecases">
-      <h2>Use Cases</h2>
       <p>
-        This is a general XML service. It does not require a specific editor or protocol.
-        A client can be a UI, a command-line tool, a build process, a test helper, or an
-        extension adapter.
+        Schema bundles are also supported for XSD files that use
+        <code>xs:include</code> or <code>xs:import</code>.
       </p>
+    </section>
 
-      <div class="api-grid">
-        <article class="method-card">
-          <h3>Code Editors</h3>
-          <p>Adapt completions, hovers, symbols, and text edits to editor APIs such as VS Code, Monaco, CodeMirror, or a custom browser editor.</p>
-        </article>
-        <article class="method-card">
-          <h3>CLIs and CI</h3>
-          <p>Parse and validate XML files in scripts, pre-commit checks, build pipelines, or release gates.</p>
-        </article>
-        <article class="method-card">
-          <h3>XML Tools</h3>
-          <p>Build formatters, schema-aware inspectors, migration tools, dashboards, or config analysis utilities.</p>
-        </article>
-      </div>
+    <section class="doc-section" data-section="printer">
+      <h2>Debugging</h2>
+      <p>Use the printer helpers when you want to see what the parser produced.</p>
 
       <div class="code-wrap">
         <div class="code-label">
-          <span>example adapter mapping</span>
+          <span>typescript</span>
           <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
         </div>
-        <pre class="language-typescript"><code>const editorSymbol = {
-  label: symbol.name,
-  icon: iconFor(symbol.kind),
-  range: toEditorRange(symbol.range),
-  selectionRange: toEditorRange(symbol.selectionRange),
-  children: symbol.children.map(toEditorSymbol),
-};</code></pre>
+        <pre class="language-typescript"><code>console.log(service.printTreeAST(document));
+console.log(service.printAST(document));
+console.log(service.printCST(document));</code></pre>
       </div>
     </section>
 
-    <section class="doc-section" data-section="types">
-      <h2>Types</h2>
-      <p>The core shapes are small TypeScript objects that can be mapped into your own UI, protocol, or storage format.</p>
-
-      <div class="type-list">
-        <div>
-          <h3>XMLDocument</h3>
-          <p>Root node with <code>uri</code>, <code>text</code>, <code>children</code>, syntax errors, and tree helpers.</p>
-        </div>
-        <div>
-          <h3>XMLNode</h3>
-          <p>Element node data: name, attributes, children, offsets, parent, and self-closing state.</p>
-        </div>
-        <div>
-          <h3>DocumentSymbol</h3>
-          <p>Outline entry with name, kind, range, selectionRange, and recursive children.</p>
-        </div>
-        <div>
-          <h3>Diagnostic</h3>
-          <p>Validation result with range, severity, message, source, and optional code.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="doc-section" data-section="architecture">
-      <h2>Architecture</h2>
-      <p>The data flow is intentionally small and predictable.</p>
-
-      <div class="flow">
-        <span>raw XML text</span>
-        <span>parseXMLDocument()</span>
-        <span>XMLDocument AST</span>
-        <span>services return ranges, symbols, edits, diagnostics</span>
-      </div>
-
+    <section class="doc-section" data-section="links">
+      <h2>Links</h2>
       <table class="module-table">
         <thead>
           <tr>
-            <th>Module</th>
-            <th>Purpose</th>
+            <th>Resource</th>
+            <th>URL</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><code>src/parser</code></td>
-            <td>Builds the XMLDocument tree from the underlying parser CST.</td>
+            <td>npm package</td>
+            <td><a href="https://www.npmjs.com/package/xml-language-service" target="_blank" rel="noreferrer">npmjs.com/package/xml-language-service</a></td>
           </tr>
           <tr>
-            <td><code>src/services</code></td>
-            <td>Completion, hover, symbols, formatter, rename, definitions, references, and folding.</td>
+            <td>Repository</td>
+            <td><a href="https://github.com/harshanacz/xml-language-service" target="_blank" rel="noreferrer">github.com/harshanacz/xml-language-service</a></td>
           </tr>
           <tr>
-            <td><code>src/schema</code></td>
-            <td>Schema registration, association, XSD-aware completions, and validation routing.</td>
+            <td>Project using this</td>
+            <td><a href="https://github.com/harshanacz/xml-review-bot-demo" target="_blank" rel="noreferrer">github.com/harshanacz/xml-review-bot-demo</a></td>
           </tr>
           <tr>
-            <td><code>src/xerces-wasm</code></td>
-            <td>Bundled Xerces-C++ WebAssembly validator assets.</td>
+            <td>XML language server based on this</td>
+            <td><a href="https://github.com/harshanacz/xml-language-server" target="_blank" rel="noreferrer">github.com/harshanacz/xml-language-server</a></td>
           </tr>
         </tbody>
       </table>

@@ -20,6 +20,8 @@ export class XMLDocumentImpl implements XMLDocument {
     this.endOffset = text.length;
     this.rawCST = cst;
     this.children = this.buildTree(cst);
+    // TODO: validate() currently uses Xerces for syntax errors instead of these.
+    // Wire syntaxErrors into validate() for immediate feedback before Xerces runs.
     this.syntaxErrors = [
       ...lexErrors.map((e: any) => ({
         message: e.message,

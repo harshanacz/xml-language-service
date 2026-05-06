@@ -18,6 +18,9 @@
     <img src="https://img.shields.io/npm/l/xml-language-service" alt="license" />
   </a>
   <img src="https://img.shields.io/node/v/xml-language-service" alt="node version" />
+  <a href="https://deepwiki.com/harshanacz/xml-language-service">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
+  </a>
 </p>
 
 This tool helps you work with XML in JavaScript and TypeScript projects. It can understand XML even if it has errors, and it gives features like auto complete, hover info, formatting, renaming tags, finding definitions, and validating with XSD. You can use it in editors, language servers, CLI tools, web apps, or tests.. without needing Java or installing native software.

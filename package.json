@@ -38,7 +38,7 @@
     "url": "https://github.com/harshanacz/xml-language-service/issues"
   },
   "homepage": "https://github.com/harshanacz/xml-language-service#readme",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "dependencies": {
     "@xml-tools/parser": "^1.0.11"
   },

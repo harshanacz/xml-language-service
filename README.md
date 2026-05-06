@@ -1,6 +1,6 @@
 <h1 align="center">XML Language Service</h1>
 
-<p align="center"><strong>0% Java - 100% TypeScript</strong></p>
+<p align="center"><strong>No Java dependency, Pure TypeScript (XSD validation powered by Xerces WASM).</strong></p>
 
 <p align="center">
   <strong>Language server powered by this package:</strong>
@@ -275,4 +275,4 @@ Useful scripts:
 
 ## License
 
-Apache-2.0
+MIT

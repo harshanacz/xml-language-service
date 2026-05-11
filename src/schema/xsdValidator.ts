@@ -1,6 +1,5 @@
-// @ts-ignore — xerces_validator.js is Emscripten-generated CJS; the local
-// package.json in xerces-wasm/ marks it CommonJS so Node ESM can import it.
-import XercesModule from "../xerces-wasm/xerces_validator.js";
+import { validate } from "xerces-wasm";
+import type { ValidationResult, Diagnostic as XercesDiagnostic, SchemaBundle as XercesSchemaBundle, XmlInput as XercesXmlInput, XsdInput as XercesXsdInput } from "xerces-wasm";
 import { Range } from "../utils/rangeUtils.js";
 import { Position } from "../utils/positionUtils.js";
 
@@ -14,42 +13,16 @@ export interface Diagnostic {
   source: "xsd" | "syntax";
 }
 
-export type XmlInput = string | Buffer | Blob;
+export type XmlInput = XercesXmlInput;
 
 /**
  * A bundle of schemas for xs:import / xs:include support.
  * `entry` is the root XSD content.
  * `imports` maps relative filenames (matching schemaLocation values) to their XSD content.
  */
-export interface SchemaBundle {
-  entry: XmlInput;
-  imports?: Record<string, XmlInput>;
-}
+export type SchemaBundle = XercesSchemaBundle;
 
-export type XsdInput = XmlInput | SchemaBundle;
-
-// ── Internal Xerces types ─────────────────────────────────────────────────────
-
-interface XercesDiagnostic {
-  message: string;
-  line: number;
-  column: number;
-  severity: "warning" | "error" | "fatal";
-}
-
-interface XercesResult {
-  valid: boolean;
-  parseErrors: XercesDiagnostic[];
-  schemaErrors: XercesDiagnostic[];
-}
-
-// ── WASM module loader ────────────────────────────────────────────────────────
-
-let _module: any = null;
-async function getModule(): Promise<any> {
-  if (!_module) _module = await XercesModule();
-  return _module;
-}
+export type XsdInput = XercesXsdInput;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -112,7 +85,7 @@ function findOpenTagRange(tagName: string, beforeLine: number, beforeCol: number
   return null;
 }
 
-function mapResults(result: XercesResult, xmlText: string): Diagnostic[] {
+function mapResults(result: ValidationResult, xmlText: string): Diagnostic[] {
   const xmlLines = xmlText.split("\n");
   const diagnostics: Diagnostic[] = [];
   for (const d of result.parseErrors) {
@@ -179,30 +152,20 @@ export class XsdValidatorService {
   }
 
   static async create(xsd: XsdInput): Promise<XsdValidatorService> {
-    await getModule();
     return new XsdValidatorService(xsd);
   }
 
   async validate(xmlText: string): Promise<Diagnostic[]> {
-    const mod = await getModule();
-    let result: XercesResult;
+    let result: ValidationResult;
 
     if (isSchemaBundle(this.xsd)) {
       const entryText = await toText(this.xsd.entry);
-      const imports: Record<string, string> = {};
-      if (this.xsd.imports) {
-        await Promise.all(
-          Object.entries(this.xsd.imports).map(async ([key, val]) => {
-            imports[key] = await toText(val);
-          })
-        );
-      }
       const targetNs = entryText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
-      result = await mod.validate(xmlText, { entry: entryText, imports }, targetNs);
+      result = await validate(xmlText, this.xsd, targetNs);
     } else {
       const xsdText = await toText(this.xsd);
       const targetNs = xsdText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
-      result = await mod.validate(xmlText, xsdText, targetNs);
+      result = await validate(xmlText, this.xsd, targetNs);
     }
 
     console.error(`[xsdValidator] raw result: valid=${result.valid} parseErrors=${result.parseErrors.length} schemaErrors=${result.schemaErrors.length}`);

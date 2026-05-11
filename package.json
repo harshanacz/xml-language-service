@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc && cp -r src/schema/resources dist/schema/resources && cp -r src/xerces-wasm dist/xerces-wasm",
+    "build": "rm -rf dist && tsc && cp -r src/schema/resources dist/schema/resources",
     "build:watch": "tsc --watch",
     "test": "vitest",
     "test:run": "vitest run"
@@ -40,7 +40,8 @@
   "homepage": "https://github.com/harshanacz/xml-language-service#readme",
   "license": "MIT",
   "dependencies": {
-    "@xml-tools/parser": "^1.0.11"
+    "@xml-tools/parser": "^1.0.11",
+    "xerces-wasm": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

@@ -75,8 +75,8 @@ export class SchemaProvider {
     if (existing) existing.dispose();
 
     const xsd: XsdInput = info.imports
-      ? { entry: info.xsdText, imports: info.imports }
-      : info.xsdText;
+      ? { entry: info.xsdText, imports: info.imports } // multi-file XSD
+      : info.xsdText; // single file XSD
     const validator = await XsdValidatorService.create(xsd);
     this.schemas.set(info.uri, validator);
 

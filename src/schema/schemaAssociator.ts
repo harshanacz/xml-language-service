@@ -50,6 +50,8 @@ export class SchemaAssociator {
    * Returns null if no matching schema is found.
    */
   findSchema(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
+
+    // user associations checked FIRST
     for (const assoc of this.userAssociations) {
       if (this.matchesPattern(fileName, assoc.pattern, documentPath)) {
         const xsdText = this.readXsdFile(assoc.xsdPath);
@@ -58,6 +60,7 @@ export class SchemaAssociator {
       }
     }
 
+    // built-ins checked only if no user pattern matched
     for (const assoc of this.builtInAssociations) {
       if (
         this.matchesPattern(fileName, assoc.pattern, documentPath) ||

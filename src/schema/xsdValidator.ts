@@ -158,13 +158,17 @@ export class XsdValidatorService {
   async validate(xmlText: string): Promise<Diagnostic[]> {
     let result: ValidationResult;
 
+    // We do this if/else check simply because the xerces-wasm package requires the 
+    // `targetNamespace` as the 3rd parameter. We need to extract it via Regex, and 
+    // the text is located in a different property depending on if it's a Bundle or a String.
+    // Notice that `this.xsd` is passed directly as the 2nd parameter in both cases.
     if (isSchemaBundle(this.xsd)) {
       const entryText = await toText(this.xsd.entry);
-      const targetNs = entryText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
+      const targetNs = entryText.match(/\btargetNamespace\s*=\s*(["'])(.*?)\1/)?.[2] ?? "";
       result = await validate(xmlText, this.xsd, targetNs);
     } else {
       const xsdText = await toText(this.xsd);
-      const targetNs = xsdText.match(/\btargetNamespace="([^"]*)"/)?.[1] ?? "";
+      const targetNs = xsdText.match(/\btargetNamespace\s*=\s*(["'])(.*?)\1/)?.[2] ?? "";
       result = await validate(xmlText, this.xsd, targetNs);
     }
 

@@ -132,7 +132,7 @@ export class SchemaProvider {
    * Returns a warning diagnostic when no matching schema is found.
    */
   async validate(schemaUri: string, document: XMLDocument): Promise<Diagnostic[]> {
-    const validator = this.schemas.get(schemaUri);
+    const validator = this.schemas.get(schemaUri); // load via registerSchema
     if (!validator) {
       return [
         {

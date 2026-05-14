@@ -45,10 +45,15 @@ export { SchemaAssociation, ResolvedSchema };
  * `xsdText` is the root XSD content.
  * `imports` optionally maps relative filenames (matching xs:include / xs:import
  * schemaLocation values) to their XSD content, enabling multi-file schemas.
+ * `xsdPath` is an optional stable key for the XSD file itself (e.g. its absolute
+ * path on disk).  When provided, multiple documents that share the same XSD path
+ * will reuse a single compiled XsdValidatorService instead of creating one copy
+ * per open document.  Defaults to `uri` when omitted.
  */
 export interface SchemaInfo {
   uri: string;
   xsdText: string;
+  xsdPath?: string;
   imports?: Record<string, string>;
 }
 
@@ -56,7 +61,10 @@ export { SchemaBundle };
 
 /** Registry that manages compiled XSD validators and routes validation requests to them. */
 export class SchemaProvider {
-  private schemas = new Map<string, XsdValidatorService>();
+  // xsdKey (xsdPath ?? uri) → one validator per unique XSD
+  private validators = new Map<string, XsdValidatorService>();
+  // documentUri → xsdKey — many documents can share the same validator
+  private documentToSchema = new Map<string, string>();
   private completionProviders: Map<string, XsdCompletionProvider>;
   private associator: SchemaAssociator;
 
@@ -66,19 +74,30 @@ export class SchemaProvider {
   }
 
   /**
-   * Compiles the given XSD and registers it under the provided URI.
-   * If a validator for that URI already exists it is disposed before being replaced.
-   * Also builds and caches a completion provider for the same XSD.
+   * Compiles the given XSD (if not already compiled for the same xsdPath) and
+   * maps the document URI to that validator.  Multiple documents sharing the
+   * same xsdPath reuse a single XsdValidatorService instance.
+   * Also builds and caches a completion provider for the document URI.
    */
   async registerSchema(info: SchemaInfo): Promise<void> {
-    const existing = this.schemas.get(info.uri);
-    if (existing) existing.dispose();
+    const xsdKey = info.xsdPath ?? info.uri;
+    const prevKey = this.documentToSchema.get(info.uri);
+    this.documentToSchema.set(info.uri, xsdKey);
 
-    const xsd: XsdInput = info.imports
-      ? { entry: info.xsdText, imports: info.imports } // multi-file XSD
-      : info.xsdText; // single file XSD
-    const validator = await XsdValidatorService.create(xsd);
-    this.schemas.set(info.uri, validator);
+    // If this document previously pointed to a different XSD key, release that
+    // validator when no other document still references it.
+    if (prevKey && prevKey !== xsdKey && !this._isKeyReferenced(prevKey)) {
+      this.validators.get(prevKey)?.dispose();
+      this.validators.delete(prevKey);
+    }
+
+    // Compile the validator only once per unique XSD key.
+    if (!this.validators.has(xsdKey)) {
+      const xsd: XsdInput = info.imports
+        ? { entry: info.xsdText, imports: info.imports }
+        : info.xsdText;
+      this.validators.set(xsdKey, await XsdValidatorService.create(xsd));
+    }
 
     // Build the completion provider from the fully inlined XSD so that types
     // defined in xs:include'd schemas are available for hover and completions.
@@ -88,6 +107,13 @@ export class SchemaProvider {
     const provider = new XsdCompletionProvider(completionXsd);
     console.error(`[schemaProvider] Built provider for ${info.uri}: ${provider.getAllElements().length} elements, payloadFactory=${provider.getElement("payloadFactory") !== undefined}, inlinedXsdLen=${completionXsd.length}`);
     this.completionProviders.set(info.uri, provider);
+  }
+
+  private _isKeyReferenced(xsdKey: string): boolean {
+    for (const k of this.documentToSchema.values()) {
+      if (k === xsdKey) return true;
+    }
+    return false;
   }
 
   /** Registers a custom file-to-schema mapping that takes priority over built-in associations. */
@@ -132,7 +158,8 @@ export class SchemaProvider {
    * Returns a warning diagnostic when no matching schema is found.
    */
   async validate(schemaUri: string, document: XMLDocument): Promise<Diagnostic[]> {
-    const validator = this.schemas.get(schemaUri); // load via registerSchema
+    const xsdKey = this.documentToSchema.get(schemaUri);
+    const validator = xsdKey ? this.validators.get(xsdKey) : undefined;
     if (!validator) {
       return [
         {
@@ -148,17 +175,24 @@ export class SchemaProvider {
     return validator.validate(document.text);
   }
 
-  /** Returns true when a compiled validator for the given URI exists in the registry. */
+  /** Returns true when a compiled validator for the given document URI exists in the registry. */
   hasSchema(uri: string): boolean {
-    return this.schemas.has(uri);
+    return this.documentToSchema.has(uri);
   }
 
   /** Removes all auto:// schemas so they are re-registered fresh on next validation. */
   invalidateAutoSchemas(): void {
-    for (const [key, validator] of this.schemas) {
-      if (key.startsWith("auto://")) {
-        validator.dispose();
-        this.schemas.delete(key);
+    const keysToCheck = new Set<string>();
+    for (const [docUri, xsdKey] of this.documentToSchema) {
+      if (docUri.startsWith("auto://")) {
+        keysToCheck.add(xsdKey);
+        this.documentToSchema.delete(docUri);
+      }
+    }
+    for (const xsdKey of keysToCheck) {
+      if (!this._isKeyReferenced(xsdKey)) {
+        this.validators.get(xsdKey)?.dispose();
+        this.validators.delete(xsdKey);
       }
     }
     for (const key of this.completionProviders.keys()) {
@@ -170,10 +204,11 @@ export class SchemaProvider {
 
   /** Disposes all registered validators and clears the registry. */
   dispose(): void {
-    for (const validator of this.schemas.values()) {
+    for (const validator of this.validators.values()) {
       validator.dispose();
     }
-    this.schemas.clear();
+    this.validators.clear();
+    this.documentToSchema.clear();
     this.completionProviders.clear();
   }
 }

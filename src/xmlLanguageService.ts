@@ -2,6 +2,7 @@ import { parseXMLDocument } from "./parser/xmlParser.js";
 import { printAST, printCST, printTreeAST, PrintOptions } from "./utils/xmlPrinter.js";
 import { XMLDocument } from "./parser/xmlNode.js";
 import { Position } from "./utils/positionUtils.js";
+import { Range } from "./utils/rangeUtils.js";
 import { doComplete, CompletionList } from "./services/xmlCompletion.js";
 import { doHover, HoverResult } from "./services/xmlHover.js";
 import { findDocumentSymbols, DocumentSymbol } from "./services/xmlSymbols.js";
@@ -10,6 +11,8 @@ import { format, TextEdit, FormatterOptions } from "./services/xmlFormatter.js";
 import { doRename } from "./services/xmlRename.js";
 import { doDefinition, DefinitionResult } from "./services/xmlDefinition.js";
 import { findReferences, ReferenceResult } from "./services/xmlReferences.js";
+import { getInlayHints, InlayHint } from "./services/xmlInlayHints.js";
+import { getCodeLens, CodeLens } from "./services/xmlCodeLens.js";
 import { SchemaProvider, SchemaInfo, SchemaAssociation, ResolvedSchema } from "./schema/schemaProvider.js";
 import { Diagnostic } from "./schema/xsdValidator.js";
 
@@ -57,6 +60,16 @@ export function getLanguageService() {
 
     findReferences(document: XMLDocument, position: Position): ReferenceResult[] {
       return findReferences(document, position);
+    },
+
+    getInlayHints(document: XMLDocument, fileName?: string, documentPath?: string, range?: Range): InlayHint[] {
+      const xmlns = (document as any).getNamespace?.() ?? undefined;
+      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns, documentPath);
+      return getInlayHints(document, completionProvider ?? undefined, range);
+    },
+
+    getCodeLens(document: XMLDocument): CodeLens[] {
+      return getCodeLens(document);
     },
 
     // ── Debug / Inspection ───────────────────────────────────────────────────

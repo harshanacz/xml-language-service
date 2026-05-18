@@ -15,6 +15,8 @@ export { FoldingRange } from "./services/xmlFolding.js";
 export { TextEdit, FormatterOptions } from "./services/xmlFormatter.js";
 export { DefinitionResult } from "./services/xmlDefinition.js";
 export { ReferenceResult } from "./services/xmlReferences.js";
+export { InlayHint } from "./services/xmlInlayHints.js";
+export { CodeLens } from "./services/xmlCodeLens.js";
 
 // Debug / inspection utilities
 export { printAST, printCST, printTreeAST, PrintOptions, PrintFormat } from "./utils/xmlPrinter.js";

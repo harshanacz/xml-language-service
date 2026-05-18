@@ -25,6 +25,8 @@
 
 This tool helps you work with XML in JavaScript and TypeScript projects. It can understand XML even if it has errors, and it gives features like auto complete, hover info, formatting, renaming tags, finding definitions, and validating with XSD. You can use it in editors, language servers, CLI tools, web apps, or tests.. without needing Java or installing native software.
 
+![Architecture Overview](docs/images/archi.png)
+
 ## Links
 
 | Resource | URL |

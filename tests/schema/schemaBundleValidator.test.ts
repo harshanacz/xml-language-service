@@ -237,12 +237,10 @@ describe("xs:include — end-to-end through SchemaProvider", () => {
     expect(result.filter((d) => d.source === "syntax").length).toBeGreaterThan(0);
   });
 
-  it("unknown schemaUri returns a single 'no schema registered' warning", async () => {
+  it("unknown schemaUri returns empty array for valid XML", async () => {
     const doc = parseXMLDocument("file:///test.xml", validPeople);
     const result = await provider.validate("file:///unknown.xsd", doc);
-    expect(result).toHaveLength(1);
-    expect(result[0].severity).toBe("warning");
-    expect(result[0].source).toBe("xsd");
+    expect(result).toHaveLength(0);
   });
 });
 

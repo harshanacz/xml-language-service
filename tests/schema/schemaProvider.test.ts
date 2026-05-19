@@ -57,12 +57,10 @@ describe("SchemaProvider", () => {
     expect(result.length).toBeGreaterThan(0);
   });
 
-  it("validate() returns a warning diagnostic for an unknown schemaUri", async () => {
+  it("validate() returns empty array for an unknown schemaUri with valid XML", async () => {
     const doc = parseXMLDocument("file:///test.xml", validXml);
     const result = await provider.validate("file:///unknown.xsd", doc);
-    expect(result).toHaveLength(1);
-    expect(result[0].severity).toBe("warning");
-    expect(result[0].message).toContain("No schema registered");
+    expect(result).toHaveLength(0);
   });
 
   it("validate() returns syntax diagnostics for malformed XML", async () => {

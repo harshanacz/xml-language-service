@@ -161,14 +161,17 @@ export class SchemaProvider {
     const xsdKey = this.documentToSchema.get(schemaUri);
     const validator = xsdKey ? this.validators.get(xsdKey) : undefined;
     if (!validator) {
-      return [
-        {
-          message: "No schema registered for: " + schemaUri,
-          severity: "warning",
-          source: "xsd",
-          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+      // No schema registered — fall back to the parser's own syntax errors so
+      // basic well-formedness problems are still reported without Xerces.
+      return document.syntaxErrors.map((e) => ({
+        message: e.message,
+        severity: "error" as const,
+        source: "syntax" as const,
+        range: {
+          start: { line: e.line, character: e.character },
+          end:   { line: e.line, character: e.character },
         },
-      ];
+      }));
     }
     // Xerces runs syntax parsing + XSD validation in one pass, so both
     // syntax errors and schema errors are returned even on malformed XML.

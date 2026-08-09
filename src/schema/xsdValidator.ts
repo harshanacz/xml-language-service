@@ -172,11 +172,6 @@ export class XsdValidatorService {
       result = await validate(xmlText, this.xsd, targetNs);
     }
 
-    console.error(`[xsdValidator] raw result: valid=${result.valid} parseErrors=${result.parseErrors.length} schemaErrors=${result.schemaErrors.length}`);
-    if (result.schemaErrors.length > 0) {
-      console.error(`[xsdValidator] schemaErrors[0]: ${JSON.stringify(result.schemaErrors[0])}`);
-    }
-
     return mapResults(result, xmlText);
   }
 

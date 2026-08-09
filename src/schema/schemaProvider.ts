@@ -186,7 +186,10 @@ export class SchemaProvider {
         source: "syntax" as const,
         range: {
           start: { line: e.line, character: e.character },
-          end:   { line: e.line, character: e.character },
+          end: {
+            line: e.endLine ?? e.line,
+            character: e.endCharacter ?? (e.character + 1),
+          },
         },
       }));
     }

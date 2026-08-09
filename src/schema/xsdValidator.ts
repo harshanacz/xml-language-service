@@ -55,7 +55,7 @@ function toRange(line: number, column: number, xmlLines: string[]): Range {
   }
 
   const pos: Position = { line: l, character: c };
-  return { start: pos, end: pos };
+  return { start: pos, end: { line: l, character: Math.max(c + 1, lineText.length || c + 1) } };
 }
 
 // Xerces embeds the mismatched start-tag name in messages like:

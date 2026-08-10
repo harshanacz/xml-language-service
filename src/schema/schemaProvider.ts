@@ -61,8 +61,8 @@ export { SchemaBundle };
 
 /** Registry that manages compiled XSD validators and routes validation requests to them. */
 export class SchemaProvider {
-  // xsdKey (xsdPath ?? uri) → one validator per unique XSD
-  private validators = new Map<string, XsdValidatorService>();
+  // xsdKey (xsdPath ?? uri) → in-flight compilation Promise to prevent startup race conditions
+  private validators = new Map<string, Promise<XsdValidatorService>>();
   // documentUri → xsdKey — many documents can share the same validator
   private documentToSchema = new Map<string, string>();
   private completionProviders: Map<string, XsdCompletionProvider>;
@@ -87,26 +87,41 @@ export class SchemaProvider {
     // If this document previously pointed to a different XSD key, release that
     // validator when no other document still references it.
     if (prevKey && prevKey !== xsdKey && !this._isKeyReferenced(prevKey)) {
-      this.validators.get(prevKey)?.dispose();
+      const prevPromise = this.validators.get(prevKey);
       this.validators.delete(prevKey);
+      if (prevPromise) {
+        prevPromise.then((v) => v.dispose()).catch(() => {});
+      }
     }
 
-    // Compile the validator only once per unique XSD key.
+    // Compile the validator only once per unique XSD key, caching the in-flight Promise synchronously.
     if (!this.validators.has(xsdKey)) {
       const xsd: XsdInput = info.imports
         ? { entry: info.xsdText, imports: info.imports }
         : info.xsdText;
-      this.validators.set(xsdKey, await XsdValidatorService.create(xsd));
+      const pending = XsdValidatorService.create(xsd).catch((err) => {
+        this.validators.delete(xsdKey);
+        throw err;
+      });
+      this.validators.set(xsdKey, pending);
     }
 
-    // Build the completion provider from the fully inlined XSD so that types
-    // defined in xs:include'd schemas are available for hover and completions.
-    const completionXsd = info.imports
-      ? inlineIncludes(info.xsdText, info.imports)
-      : info.xsdText;
-    const provider = new XsdCompletionProvider(completionXsd);
-    console.error(`[schemaProvider] Built provider for ${info.uri}: ${provider.getAllElements().length} elements, payloadFactory=${provider.getElement("payloadFactory") !== undefined}, inlinedXsdLen=${completionXsd.length}`);
-    this.completionProviders.set(info.uri, provider);
+    await this.validators.get(xsdKey);
+    await this.buildAndCacheCompletionProvider(info);
+  }
+
+  /** Builds and caches an XSD completion provider for the given SchemaInfo. */
+  async buildAndCacheCompletionProvider(info: SchemaInfo): Promise<void> {
+    const xsdKey = info.xsdPath ?? info.uri;
+    this.documentToSchema.set(info.uri, xsdKey);
+
+    if (!this.completionProviders.has(xsdKey)) {
+      const completionXsd = info.imports
+        ? inlineIncludes(info.xsdText, info.imports)
+        : info.xsdText;
+      const provider = new XsdCompletionProvider(completionXsd);
+      this.completionProviders.set(xsdKey, provider);
+    }
   }
 
   private _isKeyReferenced(xsdKey: string): boolean {
@@ -121,6 +136,11 @@ export class SchemaProvider {
     this.associator.addUserAssociation(association);
   }
 
+  /** Clears all user-registered associations. */
+  clearUserAssociations(): void {
+    this.associator.clearUserAssociations();
+  }
+
   /** Returns the raw ResolvedSchema (with xsdText) for the given file name and optional namespace, or null if none matches. */
   findSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
     return this.associator.findSchema(fileName, xmlns, documentPath);
@@ -132,11 +152,13 @@ export class SchemaProvider {
    * Returns null if no matching schema is found.
    */
   resolveSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): XsdCompletionProvider | null {
-    // Prefer the completion provider that was built during registerSchema (which has
-    // all xs:include content inlined).  diagnosticsHandler registers under auto://<path>.
     if (documentPath) {
-      const registered = this.completionProviders.get(`auto://${documentPath}`);
-      if (registered) return registered;
+      const autoUri = `auto://${documentPath}`;
+      const xsdKey = this.documentToSchema.get(autoUri);
+      if (xsdKey) {
+        const registered = this.completionProviders.get(xsdKey);
+        if (registered) return registered;
+      }
     }
 
     const cacheKey = `${documentPath ?? fileName}|${xmlns ?? ""}`;
@@ -146,10 +168,6 @@ export class SchemaProvider {
     const resolved = this.associator.findSchema(fileName, xmlns, documentPath);
     if (!resolved) return null;
 
-    // Build a provider from the raw XSD text (no xs:include inlining). This is a
-    // partial provider used only when the auto:// provider is not ready yet. It is
-    // intentionally NOT cached so that once validateAndSend registers the full
-    // auto:// provider it is used immediately on the next request.
     return new XsdCompletionProvider(resolved.xsdText);
   }
 
@@ -159,22 +177,23 @@ export class SchemaProvider {
    */
   async validate(schemaUri: string, document: XMLDocument): Promise<Diagnostic[]> {
     const xsdKey = this.documentToSchema.get(schemaUri);
-    const validator = xsdKey ? this.validators.get(xsdKey) : undefined;
-    if (!validator) {
-      // No schema registered — fall back to the parser's own syntax errors so
-      // basic well-formedness problems are still reported without Xerces.
+    const validatorPromise = xsdKey ? this.validators.get(xsdKey) : undefined;
+    if (!validatorPromise) {
+      // No schema registered — fall back to the parser's own syntax errors
       return document.syntaxErrors.map((e) => ({
         message: e.message,
         severity: "error" as const,
         source: "syntax" as const,
         range: {
           start: { line: e.line, character: e.character },
-          end:   { line: e.line, character: e.character },
+          end: {
+            line: e.endLine ?? e.line,
+            character: e.endCharacter ?? (e.character + 1),
+          },
         },
       }));
     }
-    // Xerces runs syntax parsing + XSD validation in one pass, so both
-    // syntax errors and schema errors are returned even on malformed XML.
+    const validator = await validatorPromise;
     return validator.validate(document.text);
   }
 
@@ -184,7 +203,7 @@ export class SchemaProvider {
   }
 
   /** Removes all auto:// schemas so they are re-registered fresh on next validation. */
-  invalidateAutoSchemas(): void {
+  async invalidateAutoSchemas(): Promise<void> {
     const keysToCheck = new Set<string>();
     for (const [docUri, xsdKey] of this.documentToSchema) {
       if (docUri.startsWith("auto://")) {
@@ -194,8 +213,14 @@ export class SchemaProvider {
     }
     for (const xsdKey of keysToCheck) {
       if (!this._isKeyReferenced(xsdKey)) {
-        this.validators.get(xsdKey)?.dispose();
+        const promise = this.validators.get(xsdKey);
         this.validators.delete(xsdKey);
+        if (promise) {
+          try {
+            const v = await promise;
+            v.dispose();
+          } catch {}
+        }
       }
     }
     for (const key of this.completionProviders.keys()) {
@@ -206,9 +231,12 @@ export class SchemaProvider {
   }
 
   /** Disposes all registered validators and clears the registry. */
-  dispose(): void {
-    for (const validator of this.validators.values()) {
-      validator.dispose();
+  async dispose(): Promise<void> {
+    for (const validatorPromise of this.validators.values()) {
+      try {
+        const v = await validatorPromise;
+        v.dispose();
+      } catch {}
     }
     this.validators.clear();
     this.documentToSchema.clear();

@@ -55,7 +55,7 @@ function toRange(line: number, column: number, xmlLines: string[]): Range {
   }
 
   const pos: Position = { line: l, character: c };
-  return { start: pos, end: pos };
+  return { start: pos, end: { line: l, character: Math.max(c + 1, lineText.length || c + 1) } };
 }
 
 // Xerces embeds the mismatched start-tag name in messages like:
@@ -170,11 +170,6 @@ export class XsdValidatorService {
       const xsdText = await toText(this.xsd);
       const targetNs = xsdText.match(/\btargetNamespace\s*=\s*(["'])(.*?)\1/)?.[2] ?? "";
       result = await validate(xmlText, this.xsd, targetNs);
-    }
-
-    console.error(`[xsdValidator] raw result: valid=${result.valid} parseErrors=${result.parseErrors.length} schemaErrors=${result.schemaErrors.length}`);
-    if (result.schemaErrors.length > 0) {
-      console.error(`[xsdValidator] schemaErrors[0]: ${JSON.stringify(result.schemaErrors[0])}`);
     }
 
     return mapResults(result, xmlText);

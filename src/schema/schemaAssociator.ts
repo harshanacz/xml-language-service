@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import { fileURLToPath } from "url";
 
 export interface SchemaAssociation {
@@ -14,6 +15,21 @@ export interface ResolvedSchema {
   source: "builtin" | "custom";
 }
 
+function resolveSchemaRoot(): string {
+  try {
+    const dir = path.dirname(fileURLToPath(import.meta.url));
+    const bundled = path.join(dir, "resources", "schemas");
+    if (fs.existsSync(bundled)) return bundled;
+    const oldDefault = path.join(dir, "resources", "default");
+    if (fs.existsSync(oldDefault)) return oldDefault;
+    return path.join(dir, "..", "resources", "default");
+  } catch {
+    return path.join(process.cwd(), "src", "schema", "resources", "default");
+  }
+}
+
+const SCHEMAS_ROOT = resolveSchemaRoot();
+
 export class SchemaAssociator {
   private builtInAssociations: SchemaAssociation[];
   private userAssociations: SchemaAssociation[];
@@ -21,15 +37,15 @@ export class SchemaAssociator {
   constructor() {
     this.builtInAssociations = [
       {
-        pattern: "pom.xml",
+        pattern: "**/pom.xml",
         namespace: "http://maven.apache.org/POM/4.0.0",
-        xsdPath: fileURLToPath(new URL("../resources/default/maven-4.0.0.xsd", import.meta.url)),
+        xsdPath: path.join(SCHEMAS_ROOT, "maven-4.0.0.xsd"),
         isBuiltIn: true,
       },
       {
         pattern: "web.xml",
         namespace: "http://xmlns.jcp.org/xml/ns/javaee",
-        xsdPath: fileURLToPath(new URL("../resources/default/web-app_3_1.xsd", import.meta.url)),
+        xsdPath: path.join(SCHEMAS_ROOT, "web-app_3_1.xsd"),
         isBuiltIn: true,
       },
     ];
@@ -44,14 +60,27 @@ export class SchemaAssociator {
     this.userAssociations.push(association);
   }
 
+  /** Clears all user-registered associations. */
+  clearUserAssociations(): void {
+    this.userAssociations = [];
+  }
+
   /**
    * Finds and reads the XSD schema for the given file name and optional xmlns namespace.
-   * User associations are checked first and short-circuit built-in lookup on match.
+   * Priority: user associations (pattern match) > built-in associations (namespace/pattern match).
    * Returns null if no matching schema is found.
    */
   findSchema(fileName: string, xmlns?: string, documentPath?: string): ResolvedSchema | null {
+    // 0. Hardcoded guard for pom.xml to prevent custom wildcard associations from incorrectly matching Maven files
+    if (fileName === "pom.xml" || fileName.endsWith("/pom.xml") || fileName.endsWith("\\pom.xml")) {
+      const pomAssoc = this.builtInAssociations.find((a) => a.namespace === "http://maven.apache.org/POM/4.0.0");
+      if (pomAssoc) {
+        const xsdText = this.readXsdFile(pomAssoc.xsdPath);
+        if (xsdText) return { xsdText, xsdPath: pomAssoc.xsdPath, source: "builtin" };
+      }
+    }
 
-    // user associations checked FIRST
+    // 1. user associations checked FIRST (pattern match)
     for (const assoc of this.userAssociations) {
       if (this.matchesPattern(fileName, assoc.pattern, documentPath)) {
         const xsdText = this.readXsdFile(assoc.xsdPath);
@@ -60,7 +89,7 @@ export class SchemaAssociator {
       }
     }
 
-    // built-ins checked only if no user pattern matched
+    // 2. built-ins checked by namespace or pattern
     for (const assoc of this.builtInAssociations) {
       if (
         this.matchesPattern(fileName, assoc.pattern, documentPath) ||
@@ -78,8 +107,8 @@ export class SchemaAssociator {
   private matchesPattern(fileName: string, pattern: string, documentPath?: string): boolean {
     if (fileName === pattern) return true;
     if (documentPath && this.globMatches(pattern, documentPath)) return true;
-    // Fallback for simple **/*.ext patterns — match by filename suffix alone.
-    const stripped = pattern.replace(/^\*\*\//, "");
+    // Fallback for simple **/*.ext or *.ext patterns — match by filename suffix alone.
+    const stripped = pattern.replace(/^\*\*\//, "").replace(/^\*/, "");
     return !stripped.includes("/") && fileName.endsWith(stripped);
   }
 

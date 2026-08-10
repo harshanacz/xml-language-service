@@ -63,6 +63,30 @@ describe("SchemaAssociator", () => {
       isBuiltIn: false,
     });
     const result = assoc.findSchema("pom.xml");
+    expect(result?.source).toBe("builtin"); // pom.xml hardcoded guard short-circuits to pom.xml built-in
+  });
+
+  it("wildcard pattern **/*.xml matches bare filename without documentPath", () => {
+    const assoc = new SchemaAssociator();
+    assoc.addUserAssociation({
+      pattern: "**/*.custom",
+      xsdPath: mavenXsdPath,
+      isBuiltIn: false,
+    });
+    const result = assoc.findSchema("sample.custom");
+    expect(result).not.toBeNull();
     expect(result?.source).toBe("custom");
+  });
+
+  it("clearUserAssociations resets added user associations", () => {
+    const assoc = new SchemaAssociator();
+    assoc.addUserAssociation({
+      pattern: "custom.xml",
+      xsdPath: mavenXsdPath,
+      isBuiltIn: false,
+    });
+    expect(assoc.findSchema("custom.xml")).not.toBeNull();
+    assoc.clearUserAssociations();
+    expect(assoc.findSchema("custom.xml")).toBeNull();
   });
 });

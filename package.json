@@ -41,7 +41,7 @@
   "license": "MIT",
   "dependencies": {
     "@xml-tools/parser": "^1.0.11",
-    "xerces-wasm": "^1.0.0"
+    "xerces-wasm": "^2.0.1"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

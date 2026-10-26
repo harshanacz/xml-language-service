@@ -1,4 +1,5 @@
 import { XMLNode, XMLAttribute, XMLDocument, SyntaxError } from "./xmlNode.js";
+import { collectWellFormednessErrors } from "./wellFormedness.js";
 
 export class XMLDocumentImpl implements XMLDocument {
   type: "root" = "root";
@@ -47,6 +48,7 @@ export class XMLDocumentImpl implements XMLDocument {
           endCharacter: Math.max(startCol + 1, endCol),
         };
       }),
+      ...collectWellFormednessErrors(cst, text),
     ];
   }
 

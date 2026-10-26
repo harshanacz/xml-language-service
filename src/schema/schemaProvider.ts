@@ -146,6 +146,11 @@ export class SchemaProvider {
     return this.associator.findSchema(fileName, xmlns, documentPath);
   }
 
+  /** Async variant that supports network fallback for remote HTTP/HTTPS systemIds. */
+  async findSchemaForDocumentAsync(fileName: string, xmlns?: string, documentPath?: string, systemId?: string): Promise<ResolvedSchema | null> {
+    return this.associator.findSchemaAsync(fileName, xmlns, documentPath, systemId);
+  }
+
   /**
    * Resolves and returns the XsdCompletionProvider for the given file name and optional namespace.
    * Automatically loads and caches the provider on first access via the built-in associations.

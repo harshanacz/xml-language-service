@@ -92,18 +92,32 @@ export function getLanguageService() {
       return schemaProvider.findSchemaForDocument(fileName, xmlns, documentPath);
     },
 
+    /** Async variant supporting remote HTTP/HTTPS systemId fetching when not found locally. */
+    async resolveSchemaForDocumentAsync(fileName: string, xmlns?: string, documentPath?: string, systemId?: string): Promise<ResolvedSchema | null> {
+      return schemaProvider.findSchemaForDocumentAsync(fileName, xmlns, documentPath, systemId);
+    },
+
     /** Registers a custom file-to-schema mapping, taking priority over built-in associations. */
     addUserAssociation(association: SchemaAssociation): void {
       schemaProvider.addUserAssociation(association);
     },
 
-    /** Clears all auto-registered schemas so they are re-loaded from disk on next validation. */
-    invalidateAutoSchemas(): void {
-      schemaProvider.invalidateAutoSchemas();
+    /** Removes all user-registered associations so a fresh set can be applied. */
+    clearUserAssociations(): void {
+      schemaProvider.clearUserAssociations();
     },
 
-    dispose(): void {
-      schemaProvider.dispose();
+    async buildAndCacheCompletionProvider(info: SchemaInfo): Promise<void> {
+      return schemaProvider.buildAndCacheCompletionProvider(info);
+    },
+
+    /** Clears all auto-registered schemas so they are re-loaded from disk on next validation. */
+    async invalidateAutoSchemas(): Promise<void> {
+      return schemaProvider.invalidateAutoSchemas();
+    },
+
+    async dispose(): Promise<void> {
+      return schemaProvider.dispose();
     },
   };
 }

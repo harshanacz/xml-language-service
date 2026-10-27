@@ -77,8 +77,19 @@ describe("SchemaProvider", () => {
     expect(provider.hasSchema(schemaUri)).toBe(true);
   });
 
-  it("dispose() cleans up without throwing", () => {
+  it("registering the same xsdKey concurrently shares one in-flight promise without throwing", async () => {
+    const p1 = provider.registerSchema({ uri: "file:///doc1.xml", xsdPath: "/shared.xsd", xsdText: simpleXsd });
+    const p2 = provider.registerSchema({ uri: "file:///doc2.xml", xsdPath: "/shared.xsd", xsdText: simpleXsd });
+    const p3 = provider.registerSchema({ uri: "file:///doc3.xml", xsdPath: "/shared.xsd", xsdText: simpleXsd });
+    await expect(Promise.all([p1, p2, p3])).resolves.toBeDefined();
+    expect(provider.hasSchema("file:///doc1.xml")).toBe(true);
+    expect(provider.hasSchema("file:///doc2.xml")).toBe(true);
+    expect(provider.hasSchema("file:///doc3.xml")).toBe(true);
+  });
+
+  it("dispose() cleans up without throwing", async () => {
     const tempProvider = new SchemaProvider();
-    expect(() => tempProvider.dispose()).not.toThrow();
+    await tempProvider.registerSchema({ uri: schemaUri, xsdText: simpleXsd });
+    await expect(tempProvider.dispose()).resolves.toBeUndefined();
   });
 });

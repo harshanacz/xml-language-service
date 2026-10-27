@@ -1,4 +1,14 @@
 import { XMLNode, XMLAttribute, XMLDocument, SyntaxError } from "./xmlNode.js";
+import { collectWellFormednessErrors } from "./wellFormedness.js";
+import { offsetToPosition } from "../utils/positionUtils.js";
+
+function isFiniteNumber(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n);
+}
+
+function endOfDocument(text: string): { line: number; character: number } {
+  return offsetToPosition(text, text.length);
+}
 
 export class XMLDocumentImpl implements XMLDocument {
   type: "root" = "root";
@@ -21,16 +31,42 @@ export class XMLDocumentImpl implements XMLDocument {
     this.rawCST = cst;
     this.children = this.buildTree(cst);
     this.syntaxErrors = [
-      ...lexErrors.map((e: any) => ({
-        message: e.message,
-        line: e.line != null ? e.line - 1 : 0,
-        character: e.column != null ? e.column - 1 : 0,
-      })),
-      ...parseErrors.map((e: any) => ({
-        message: e.message,
-        line: e.previousToken?.startLine != null ? e.previousToken.startLine - 1 : 0,
-        character: e.previousToken?.startColumn != null ? e.previousToken.startColumn - 1 : 0,
-      })),
+      ...lexErrors.map((e: any) => {
+        const start = isFiniteNumber(e.line) && isFiniteNumber(e.column)
+          ? { line: Math.max(0, e.line - 1), character: Math.max(0, e.column - 1) }
+          : endOfDocument(text);
+        const len = isFiniteNumber(e.length) && e.length > 0 ? e.length : 1;
+        return {
+          message: e.message,
+          line: start.line,
+          character: start.character,
+          endLine: start.line,
+          endCharacter: start.character + len,
+        };
+      }),
+      ...parseErrors.map((e: any) => {
+        // An error at end of input carries an EOF token whose position is NaN; fall back to the
+        // last real token, then to the end of the document.
+        const token = [e.token, e.previousToken].find(
+          (t) => isFiniteNumber(t?.startLine) && isFiniteNumber(t?.startColumn)
+        );
+        if (!token) {
+          const end = endOfDocument(text);
+          return { message: e.message, line: end.line, character: end.character, endLine: end.line, endCharacter: end.character };
+        }
+        const startLine = Math.max(0, token.startLine - 1);
+        const startCol = Math.max(0, token.startColumn - 1);
+        const endLine = isFiniteNumber(token.endLine) ? Math.max(0, token.endLine - 1) : startLine;
+        const endCol = isFiniteNumber(token.endColumn) ? token.endColumn : startCol + 1;
+        return {
+          message: e.message,
+          line: startLine,
+          character: startCol,
+          endLine: Math.max(startLine, endLine),
+          endCharacter: Math.max(startCol + 1, endCol),
+        };
+      }),
+      ...collectWellFormednessErrors(cst, text),
     ];
   }
 

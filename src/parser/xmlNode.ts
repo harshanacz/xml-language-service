@@ -15,6 +15,10 @@ export interface SyntaxError {
   line: number;
   /** 0-based character offset */
   character: number;
+  /** 0-based end line number */
+  endLine?: number;
+  /** 0-based end character offset */
+  endCharacter?: number;
 }
 
 /** Represents a node in the XML parse tree, covering elements, text, comments, and the root. */

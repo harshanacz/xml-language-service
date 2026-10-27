@@ -1,12 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "schemas": [
     {
       "id": "maven-4.0.0",
       "domain": "build",
       "pattern": "**/pom.xml",
-      "namespaces": ["http://maven.apache.org/POM/4.0.0"],
+      "namespaces": [
+        "http://maven.apache.org/POM/4.0.0"
+      ],
       "systemIds": [
         "http://maven.apache.org/xsd/maven-4.0.0.xsd",
         "https://maven.apache.org/xsd/maven-4.0.0.xsd"
@@ -18,12 +20,11 @@
       "domain": "javaee",
       "pattern": "**/web.xml",
       "namespaces": [
-        "http://xmlns.jcp.org/xml/ns/javaee",
-        "http://java.sun.com/xml/ns/javaee"
+        "http://xmlns.jcp.org/xml/ns/javaee"
       ],
       "systemIds": [
         "http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd",
-        "http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+        "https://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
       ],
       "path": "javaee/web-app_3_1.xsd"
     },
@@ -31,39 +32,26 @@
       "id": "jpa-persistence-2.2",
       "domain": "javaee",
       "pattern": "**/persistence.xml",
-      "namespaces": ["http://xmlns.jcp.org/xml/ns/persistence"],
-      "systemIds": ["http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd"],
+      "namespaces": [
+        "http://xmlns.jcp.org/xml/ns/persistence"
+      ],
+      "systemIds": [
+        "http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd"
+      ],
       "path": "javaee/persistence_2_2.xsd"
     },
     {
       "id": "spring-beans",
       "domain": "frameworks",
       "pattern": "**/spring-*.xml",
-      "namespaces": ["http://www.springframework.org/schema/beans"],
+      "namespaces": [
+        "http://www.springframework.org/schema/beans"
+      ],
       "systemIds": [
         "http://www.springframework.org/schema/beans/spring-beans.xsd",
         "http://www.springframework.org/schema/beans/spring-beans-4.3.xsd"
       ],
-      "path": "frameworks/spring-beans.xsd"
-    },
-    {
-      "id": "hibernate-config-3.0",
-      "domain": "frameworks",
-      "pattern": "**/hibernate.cfg.xml",
-      "namespaces": [],
-      "systemIds": [
-        "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd",
-        "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd"
-      ],
-      "path": "frameworks/hibernate-configuration-3.0.dtd"
-    },
-    {
-      "id": "xslt-transform",
-      "domain": "core",
-      "pattern": "**/*.xsl",
-      "namespaces": ["http://www.w3.org/1999/XSL/Transform"],
-      "systemIds": ["http://www.w3.org/1999/XSL/Transform.xsd"],
-      "path": "core/transform.xsd"
+      "path": "frameworks/spring-beans-4.3.xsd"
     }
   ]
 }

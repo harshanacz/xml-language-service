@@ -21,16 +21,32 @@ export class XMLDocumentImpl implements XMLDocument {
     this.rawCST = cst;
     this.children = this.buildTree(cst);
     this.syntaxErrors = [
-      ...lexErrors.map((e: any) => ({
-        message: e.message,
-        line: e.line != null ? e.line - 1 : 0,
-        character: e.column != null ? e.column - 1 : 0,
-      })),
-      ...parseErrors.map((e: any) => ({
-        message: e.message,
-        line: e.previousToken?.startLine != null ? e.previousToken.startLine - 1 : 0,
-        character: e.previousToken?.startColumn != null ? e.previousToken.startColumn - 1 : 0,
-      })),
+      ...lexErrors.map((e: any) => {
+        const startLine = e.line != null ? Math.max(0, e.line - 1) : 0;
+        const startCol = e.column != null ? Math.max(0, e.column - 1) : 0;
+        const len = e.length != null && e.length > 0 ? e.length : 1;
+        return {
+          message: e.message,
+          line: startLine,
+          character: startCol,
+          endLine: startLine,
+          endCharacter: startCol + len,
+        };
+      }),
+      ...parseErrors.map((e: any) => {
+        const token = (e.token && e.token.startLine != null) ? e.token : e.previousToken;
+        const startLine = token?.startLine != null ? Math.max(0, token.startLine - 1) : 0;
+        const startCol = token?.startColumn != null ? Math.max(0, token.startColumn - 1) : 0;
+        const endLine = token?.endLine != null ? Math.max(0, token.endLine - 1) : startLine;
+        const endCol = token?.endColumn != null ? token.endColumn : startCol + 1;
+        return {
+          message: e.message,
+          line: startLine,
+          character: startCol,
+          endLine: Math.max(startLine, endLine),
+          endCharacter: Math.max(startCol + 1, endCol),
+        };
+      }),
     ];
   }
 

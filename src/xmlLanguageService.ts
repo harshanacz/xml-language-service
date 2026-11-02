@@ -97,13 +97,22 @@ export function getLanguageService() {
       schemaProvider.addUserAssociation(association);
     },
 
-    /** Clears all auto-registered schemas so they are re-loaded from disk on next validation. */
-    invalidateAutoSchemas(): void {
-      schemaProvider.invalidateAutoSchemas();
+    /** Removes all user-registered associations so a fresh set can be applied. */
+    clearUserAssociations(): void {
+      schemaProvider.clearUserAssociations();
     },
 
-    dispose(): void {
-      schemaProvider.dispose();
+    async buildAndCacheCompletionProvider(info: SchemaInfo): Promise<void> {
+      return schemaProvider.buildAndCacheCompletionProvider(info);
+    },
+
+    /** Clears all auto-registered schemas so they are re-loaded from disk on next validation. */
+    async invalidateAutoSchemas(): Promise<void> {
+      return schemaProvider.invalidateAutoSchemas();
+    },
+
+    async dispose(): Promise<void> {
+      return schemaProvider.dispose();
     },
   };
 }

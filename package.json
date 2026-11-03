@@ -44,9 +44,9 @@
     "xerces-wasm": "^2.0.1"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=18.0.0"

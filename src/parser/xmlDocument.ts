@@ -45,7 +45,7 @@ export class XMLDocumentImpl implements XMLDocument {
           line: startLine,
           character: startCol,
           endLine: Math.max(startLine, endLine),
-          endCharacter: Math.max(startCol + 1, endCol),
+          endCharacter: endLine > startLine ? endCol : Math.max(startCol + 1, endCol),
         };
       }),
       ...collectWellFormednessErrors(cst, text),
@@ -60,7 +60,8 @@ export class XMLDocumentImpl implements XMLDocument {
   private buildNode(element: any, parent: XMLNode): XMLNode {
     // Chevrotain CST: tag name is in children.Name[0].image, positions in .location
     const nameToken = element?.children?.Name?.[0];
-    const isSelfClosing = !element?.children?.SLASH_OPEN?.length;
+    // `<a/>` ends with SLASH_CLOSE; an unclosed `<a>` has neither SLASH_CLOSE nor an end tag.
+    const isSelfClosing = !!element?.children?.SLASH_CLOSE?.length;
 
     const node: XMLNode = {
       type: "element",
@@ -115,7 +116,7 @@ export class XMLDocumentImpl implements XMLDocument {
   /**
    * Traverses the entire AST in a depth-first manner.
    * NOTE: This is NOT used for standard operations like finding the current node (which uses offsets).
-   * Full traversal is primarily used as a fallback to gather all document elements/attributes 
+   * Full traversal is primarily used as a fallback to gather all document elements/attributes
    * for "smart suggestions" in autocompletion when an XSD schema is unavailable.
    */
   traverse(callback: (node: XMLNode) => void): void {

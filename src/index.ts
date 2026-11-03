@@ -7,7 +7,7 @@ export { XMLDocument, XMLNode, XMLAttribute } from "./parser/xmlNode.js";
 export { Position } from "./utils/positionUtils.js";
 export { Range } from "./utils/rangeUtils.js";
 
-// Phase 01 service types
+// Service types
 export { CompletionList, CompletionItem } from "./services/xmlCompletion.js";
 export { HoverResult } from "./services/xmlHover.js";
 export { DocumentSymbol } from "./services/xmlSymbols.js";
@@ -19,6 +19,6 @@ export { ReferenceResult } from "./services/xmlReferences.js";
 // Debug / inspection utilities
 export { printAST, printCST, printTreeAST, PrintOptions, PrintFormat } from "./utils/xmlPrinter.js";
 
-// Phase 02 schema validation types
+// Schema validation types
 export { Diagnostic, SchemaBundle, XsdInput, XmlInput, XsdValidatorService } from "./schema/xsdValidator.js";
 export { SchemaProvider, SchemaInfo, ResolvedSchema, SchemaAssociation } from "./schema/schemaProvider.js";

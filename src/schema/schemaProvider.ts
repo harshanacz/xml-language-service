@@ -65,13 +65,11 @@ export class SchemaProvider {
   private validators = new Map<string, Promise<XsdValidatorService>>();
   // documentUri → xsdKey — many documents can share the same validator
   private documentToSchema = new Map<string, string>();
-  private completionProviders: Map<string, XsdCompletionProvider>;
-  private associator: SchemaAssociator;
-
-  constructor() {
-    this.completionProviders = new Map();
-    this.associator = new SchemaAssociator();
-  }
+  // xsdKey → completion provider built from an explicitly registered schema
+  private completionProviders = new Map<string, XsdCompletionProvider>();
+  // resolved xsdPath → completion provider built from an associated schema file
+  private resolvedProviders = new Map<string, XsdCompletionProvider>();
+  private associator = new SchemaAssociator();
 
   /**
    * Compiles the given XSD (if not already compiled for the same xsdPath) and
@@ -86,12 +84,8 @@ export class SchemaProvider {
 
     // If this document previously pointed to a different XSD key, release that
     // validator when no other document still references it.
-    if (prevKey && prevKey !== xsdKey && !this._isKeyReferenced(prevKey)) {
-      const prevPromise = this.validators.get(prevKey);
-      this.validators.delete(prevKey);
-      if (prevPromise) {
-        prevPromise.then((v) => v.dispose()).catch(() => {});
-      }
+    if (prevKey && prevKey !== xsdKey && !this.isKeyReferenced(prevKey)) {
+      this.releaseKey(prevKey).catch(() => {});
     }
 
     // Compile the validator only once per unique XSD key, caching the in-flight Promise synchronously.
@@ -124,11 +118,25 @@ export class SchemaProvider {
     }
   }
 
-  private _isKeyReferenced(xsdKey: string): boolean {
+  private isKeyReferenced(xsdKey: string): boolean {
     for (const k of this.documentToSchema.values()) {
       if (k === xsdKey) return true;
     }
     return false;
+  }
+
+  /** Drops the validator and completion provider stored under xsdKey. */
+  private async releaseKey(xsdKey: string): Promise<void> {
+    const promise = this.validators.get(xsdKey);
+    this.validators.delete(xsdKey);
+    this.completionProviders.delete(xsdKey);
+    if (promise) {
+      try {
+        (await promise).dispose();
+      } catch {
+        // compilation failed; nothing to dispose
+      }
+    }
   }
 
   /** Registers a custom file-to-schema mapping that takes priority over built-in associations. */
@@ -153,7 +161,8 @@ export class SchemaProvider {
 
   /**
    * Resolves and returns the XsdCompletionProvider for the given file name and optional namespace.
-   * Automatically loads and caches the provider on first access via the built-in associations.
+   * A provider registered for `auto://<documentPath>` wins; otherwise the schema is
+   * looked up through the associations and its provider is cached by XSD path.
    * Returns null if no matching schema is found.
    */
   resolveSchemaForDocument(fileName: string, xmlns?: string, documentPath?: string): XsdCompletionProvider | null {
@@ -166,19 +175,20 @@ export class SchemaProvider {
       }
     }
 
-    const cacheKey = `${documentPath ?? fileName}|${xmlns ?? ""}`;
-    const cached = this.completionProviders.get(cacheKey);
-    if (cached) return cached;
-
     const resolved = this.associator.findSchema(fileName, xmlns, documentPath);
     if (!resolved) return null;
 
-    return new XsdCompletionProvider(resolved.xsdText);
+    let provider = this.resolvedProviders.get(resolved.xsdPath);
+    if (!provider) {
+      provider = new XsdCompletionProvider(resolved.xsdText);
+      this.resolvedProviders.set(resolved.xsdPath, provider);
+    }
+    return provider;
   }
 
   /**
    * Validates the document against the schema registered under schemaUri.
-   * Returns a warning diagnostic when no matching schema is found.
+   * Without a registered validator, returns the parser's syntax errors instead.
    */
   async validate(schemaUri: string, document: XMLDocument): Promise<Diagnostic[]> {
     const xsdKey = this.documentToSchema.get(schemaUri);
@@ -202,12 +212,15 @@ export class SchemaProvider {
     return validator.validate(document.text);
   }
 
-  /** Returns true when a compiled validator for the given document URI exists in the registry. */
+  /** Returns true when a schema (validator or completion provider) is registered for the document URI. */
   hasSchema(uri: string): boolean {
     return this.documentToSchema.has(uri);
   }
 
-  /** Removes all auto:// schemas so they are re-registered fresh on next validation. */
+  /**
+   * Removes all auto:// schema registrations and every cached completion provider
+   * built from associated schema files, so schemas are re-read from disk on next use.
+   */
   async invalidateAutoSchemas(): Promise<void> {
     const keysToCheck = new Set<string>();
     for (const [docUri, xsdKey] of this.documentToSchema) {
@@ -217,22 +230,9 @@ export class SchemaProvider {
       }
     }
     for (const xsdKey of keysToCheck) {
-      if (!this._isKeyReferenced(xsdKey)) {
-        const promise = this.validators.get(xsdKey);
-        this.validators.delete(xsdKey);
-        if (promise) {
-          try {
-            const v = await promise;
-            v.dispose();
-          } catch {}
-        }
-      }
+      if (!this.isKeyReferenced(xsdKey)) await this.releaseKey(xsdKey);
     }
-    for (const key of this.completionProviders.keys()) {
-      if (key.startsWith("auto://")) {
-        this.completionProviders.delete(key);
-      }
-    }
+    this.resolvedProviders.clear();
   }
 
   /** Disposes all registered validators and clears the registry. */
@@ -246,5 +246,6 @@ export class SchemaProvider {
     this.validators.clear();
     this.documentToSchema.clear();
     this.completionProviders.clear();
+    this.resolvedProviders.clear();
   }
 }

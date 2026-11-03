@@ -84,9 +84,9 @@ service.dispose();
 | --- | --- |
 | Fault-tolerant parser | Builds a usable partial tree even when the XML is incomplete or malformed. |
 | Completion | Suggests element names, attributes, and closing tags. Can become XSD-aware when a schema is registered. |
-| Hover | Returns contextual information for XML elements, comments, and schema-backed nodes. |
+| Hover | Returns contextual information for XML elements, using schema documentation when available. |
 | Document symbols | Produces a hierarchical outline for editor sidebars and navigation views. |
-| Folding | Finds multi-line XML regions that can be collapsed. |
+| Folding | Finds multi-line elements and comments that can be collapsed. |
 | Formatting | Returns text edits for consistent XML indentation and spacing. |
 | Rename | Renames matching opening and closing tags together. |
 | Definition | Jumps between matching opening and closing tags. |

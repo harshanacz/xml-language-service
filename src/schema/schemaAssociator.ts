@@ -30,19 +30,15 @@ export interface ResolvedSchema {
   source: "builtin" | "custom" | "cache" | "network";
 }
 
+// Bundled schemas live in <package>/resources/schemas. This module sits at
+// dist/schema/ after a build and at src/schema/ when run from source (tests).
 function resolveSchemasRoot(): string {
-  try {
-    const dir = path.dirname(fileURLToPath(import.meta.url));
-    const distSchemas = path.join(dir, "resources", "schemas");
-    if (fs.existsSync(distSchemas)) return distSchemas;
-    const parentDistSchemas = path.join(dir, "..", "resources", "schemas");
-    if (fs.existsSync(parentDistSchemas)) return parentDistSchemas;
-    const rootSchemas = path.join(process.cwd(), "resources", "schemas");
-    if (fs.existsSync(rootSchemas)) return rootSchemas;
-    return path.join(dir, "resources", "default");
-  } catch {
-    return path.join(process.cwd(), "resources", "schemas");
-  }
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.join(dir, "..", "resources", "schemas"),
+    path.join(dir, "..", "..", "resources", "schemas"),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) ?? candidates[0];
 }
 
 const SCHEMAS_ROOT = resolveSchemasRoot();
@@ -88,16 +84,15 @@ export class SchemaAssociator {
    * Priority:
    * 1. User associations (pattern match)
    * 2. Catalog associations (pattern / namespace / systemId match from resources/schemas/catalog.json)
-   * 3. Local Runtime Cache (~/.cache/xml-schemas/)
+   * 3. Runtime cache of downloaded schemas (<cwd>/.cache/xml-schemas/)
    */
   findSchema(fileName: string, xmlns?: string, documentPath?: string, systemId?: string): ResolvedSchema | null {
-    // 0. Hardcoded guard for pom.xml to prevent custom wildcard associations from incorrectly matching Maven files
+    // 0. pom.xml always uses the bundled Maven schema so that broad user
+    //    associations (e.g. "**/*.xml") cannot shadow it.
     if (fileName === "pom.xml" || fileName.endsWith("/pom.xml") || fileName.endsWith("\\pom.xml")) {
       const mavenPomPath = path.join(SCHEMAS_ROOT, "build", "maven-4.0.0.xsd");
-      const fallbackMavenPath = path.join(SCHEMAS_ROOT, "maven-4.0.0.xsd");
-      const targetPath = fs.existsSync(mavenPomPath) ? mavenPomPath : fallbackMavenPath;
-      const xsdText = this.readXsdFile(targetPath);
-      if (xsdText) return { xsdText, xsdPath: targetPath, source: "builtin" };
+      const xsdText = this.readXsdFile(mavenPomPath);
+      if (xsdText) return { xsdText, xsdPath: mavenPomPath, source: "builtin" };
     }
 
     // 1. User associations checked FIRST (pattern match)
@@ -124,16 +119,7 @@ export class SchemaAssociator {
       }
     }
 
-    // Fallback for web.xml if catalog wasn't present
-    if (fileName === "web.xml" || fileName.endsWith("/web.xml") || fileName.endsWith("\\web.xml")) {
-      const webXmlPath = path.join(SCHEMAS_ROOT, "javaee", "web-app_3_1.xsd");
-      const fallbackWebPath = path.join(SCHEMAS_ROOT, "web-app_3_1.xsd");
-      const targetPath = fs.existsSync(webXmlPath) ? webXmlPath : fallbackWebPath;
-      const xsdText = this.readXsdFile(targetPath);
-      if (xsdText) return { xsdText, xsdPath: targetPath, source: "builtin" };
-    }
-
-    // 3. Check Runtime Cache (~/.cache/xml-schemas/)
+    // 3. Runtime cache of previously downloaded schemas
     if (systemId && (systemId.startsWith("http://") || systemId.startsWith("https://"))) {
       const cachedPath = this.getCachePathForUrl(systemId);
       if (fs.existsSync(cachedPath)) {

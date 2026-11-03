@@ -12,27 +12,26 @@ import { doDefinition, DefinitionResult } from "./services/xmlDefinition.js";
 import { findReferences, ReferenceResult } from "./services/xmlReferences.js";
 import { SchemaProvider, SchemaInfo, SchemaAssociation, ResolvedSchema } from "./schema/schemaProvider.js";
 import { Diagnostic } from "./schema/xsdValidator.js";
+import { getRootNamespace } from "./utils/tagUtils.js";
 
 export function getLanguageService() {
   const schemaProvider = new SchemaProvider();
 
   return {
-    // ── Phase 01 — XML Core ──────────────────────────────────────────────────
+    // ── XML core ─────────────────────────────────────────────────────────────
 
     parseXMLDocument(uri: string, text: string): XMLDocument {
       return parseXMLDocument(uri, text);
     },
 
     doComplete(document: XMLDocument, position: Position, fileName?: string, documentPath?: string): CompletionList {
-      const xmlns = (document as any).getNamespace?.() ?? undefined;
-      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns, documentPath);
-      return doComplete(document, position, completionProvider);
+      const provider = schemaProvider.resolveSchemaForDocument(fileName ?? "", getRootNamespace(document), documentPath);
+      return doComplete(document, position, provider);
     },
 
     doHover(document: XMLDocument, position: Position, fileName?: string, documentPath?: string): HoverResult | null {
-      const xmlns = (document as any).getNamespace?.() ?? undefined;
-      const completionProvider = schemaProvider.resolveSchemaForDocument(fileName ?? '', xmlns, documentPath);
-      return doHover(document, position, completionProvider);
+      const provider = schemaProvider.resolveSchemaForDocument(fileName ?? "", getRootNamespace(document), documentPath);
+      return doHover(document, position, provider);
     },
 
     findDocumentSymbols(document: XMLDocument): DocumentSymbol[] {
@@ -73,7 +72,7 @@ export function getLanguageService() {
       return printTreeAST(document);
     },
 
-    // ── Phase 02 — XSD Schema Validation ────────────────────────────────────
+    // ── XSD schema validation ────────────────────────────────────────────────
 
     async registerSchema(info: SchemaInfo): Promise<void> {
       return schemaProvider.registerSchema(info);

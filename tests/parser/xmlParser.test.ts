@@ -89,3 +89,17 @@ describe("fault tolerance on brokenXML", () => {
     expect(result.text).toBe(brokenXML);
   });
 });
+
+describe("findNodeAt on comments", () => {
+  const text = "<!-- before --><root><child/><!-- inside --></root><!-- after -->";
+  const doc = parseXMLDocument("file:///test.xml", text);
+
+  it.each(["before", "inside", "after"])("returns the %s comment with its source range and parent", (body) => {
+    const offset = text.indexOf(body);
+    const comment = doc.findNodeAt(offset);
+    expect(comment.type).toBe("comment");
+    expect(comment.name).toBe(` ${body} `);
+    expect(text.slice(comment.startOffset, comment.endOffset)).toBe(`<!-- ${body} -->`);
+    expect(comment.parent).toBe(body === "inside" ? doc.children[0] : doc);
+  });
+});

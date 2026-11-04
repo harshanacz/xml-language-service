@@ -25,7 +25,7 @@
       <span>XML Language Service</span>
     </a>
 
-    <span class="version">v1.0.1</span>
+    <span class="version">v1.1.0</span>
     <span class="topbar-space"></span>
 
     <nav class="topbar-actions" aria-label="External links">
@@ -43,7 +43,9 @@
       <a class="sidebar-link" data-target="install" href="#">Install</a>
       <a class="sidebar-link" data-target="quickstart" href="#">Quick Start</a>
       <a class="sidebar-link" data-target="features" href="#">Features</a>
-      <a class="sidebar-link" data-target="validation" href="#">XSD Validation</a>
+      <a class="sidebar-link" data-target="how" href="#">How It Works</a>
+      <a class="sidebar-link" data-target="validation" href="#">Validation</a>
+      <a class="sidebar-link" data-target="schemas" href="#">Schemas</a>
       <a class="sidebar-link" data-target="printer" href="#">Debugging</a>
       <a class="sidebar-link" data-target="links" href="#">Links</a>
     </div>
@@ -130,7 +132,7 @@ console.log(hover);
 console.log(symbols);
 console.log(formatting);
 
-service.dispose();</code></pre>
+await service.dispose();</code></pre>
       </div>
     </section>
 
@@ -152,7 +154,7 @@ service.dispose();</code></pre>
         </article>
         <article class="method-card">
           <h3>Hover info</h3>
-          <p>Shows useful information for the XML element, attribute, or comment under the cursor.</p>
+          <p>Shows the attributes and children of the element under the cursor, or its schema documentation when a schema is associated.</p>
         </article>
         <article class="method-card">
           <h3>Document symbols</h3>
@@ -160,11 +162,11 @@ service.dispose();</code></pre>
         </article>
         <article class="method-card">
           <h3>Folding ranges</h3>
-          <p>Finds XML blocks that can be collapsed, such as large nested elements.</p>
+          <p>Finds multi-line elements and comments that can be collapsed.</p>
         </article>
         <article class="method-card">
           <h3>Formatting</h3>
-          <p>Returns text edits that format XML with clean indentation and spacing.</p>
+          <p>Returns text edits that re-indent the document and keep its line endings.</p>
         </article>
         <article class="method-card">
           <h3>Rename</h3>
@@ -176,14 +178,53 @@ service.dispose();</code></pre>
         </article>
         <article class="method-card">
           <h3>XSD validation</h3>
-          <p>Checks XML against XSD schemas using Apache Xerces-C++ compiled to WebAssembly.</p>
+          <p>Reports syntax errors, including mismatched tags and undefined entities, and checks XML against XSD schemas with Apache Xerces-C++ compiled to WebAssembly.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="doc-section" data-section="how">
+      <h2>How It Works</h2>
+      <p>Every feature works from the parsed document. A schema is optional and only adds information.</p>
+
+      <div class="api-grid">
+        <article class="method-card">
+          <h3>1. Parse</h3>
+          <p>The fault-tolerant parser turns XML text into an <code>XMLDocument</code>: an element tree plus any syntax errors.</p>
+        </article>
+        <article class="method-card">
+          <h3>2. Editor features</h3>
+          <p>Completion, hover, symbols, folding, formatting, rename, definition and references all read that tree.</p>
+        </article>
+        <article class="method-card">
+          <h3>3. Find a schema</h3>
+          <p>The file name and root <code>xmlns</code> are matched against your associations, then the built-in catalog. Completion and hover then use the schema's elements and attributes.</p>
+        </article>
+        <article class="method-card">
+          <h3>4. Validate</h3>
+          <p>With a registered XSD, Xerces-C++ checks the raw text in one streaming pass. Without one, you get the parser's syntax errors.</p>
         </article>
       </div>
     </section>
 
     <section class="doc-section" data-section="validation">
-      <h2>XSD Validation</h2>
-      <p>Register an XSD schema once, then validate parsed XML documents against it.</p>
+      <h2>Validation</h2>
+      <p>
+        Without a schema, <code>validate()</code> still checks that the document
+        is well-formed, including mismatched tags and undefined entities.
+      </p>
+
+      <div class="code-wrap">
+        <div class="code-label">
+          <span>typescript</span>
+          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+        </div>
+        <pre class="language-typescript"><code>const document = service.parseXMLDocument("file:///a.xml", "&lt;a&gt;&lt;b&gt;&lt;/a&gt;");
+const diagnostics = await service.validate("file:///a.xml", document);
+// includes: expected end of tag 'b' but found 'a'</code></pre>
+      </div>
+
+      <p>To validate against an XSD, register it once, then validate any number of documents against it.</p>
 
       <div class="code-wrap">
         <div class="code-label">
@@ -191,18 +232,87 @@ service.dispose();</code></pre>
           <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
         </div>
         <pre class="language-typescript"><code>await service.registerSchema({
-  uri: "file:///schema.xsd",
-  xsdText: schemaText,
+  uri: "file:///catalog.xsd",
+  xsdText: catalogXsd,
 });
 
 const document = service.parseXMLDocument("file:///catalog.xml", xmlText);
-const diagnostics = await service.validate("file:///schema.xsd", document);</code></pre>
+const diagnostics = await service.validate("file:///catalog.xsd", document);
+// [{ range, message, severity: "error" | "warning" | "info", source: "xsd" | "syntax" }]</code></pre>
       </div>
 
       <p>
-        Schema bundles are also supported for XSD files that use
-        <code>xs:include</code> or <code>xs:import</code>.
+        If the XSD uses <code>xs:include</code> or <code>xs:import</code>, pass the
+        other files in <code>imports</code>. The keys must match the
+        <code>schemaLocation</code> values used in the XSD.
       </p>
+
+      <div class="code-wrap">
+        <div class="code-label">
+          <span>typescript</span>
+          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+        </div>
+        <pre class="language-typescript"><code>await service.registerSchema({
+  uri: "file:///root.xsd",
+  xsdText: rootXsd,
+  imports: { "types.xsd": typesXsd },
+});</code></pre>
+      </div>
+    </section>
+
+    <section class="doc-section" data-section="schemas">
+      <h2>Schemas</h2>
+      <p>
+        Pass the document's file name to <code>doComplete()</code> or
+        <code>doHover()</code> and the service looks up a schema for it. These
+        files are recognised out of the box:
+      </p>
+
+      <table class="module-table">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Schema</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>pom.xml</code></td><td>Maven 4.0.0</td></tr>
+          <tr><td><code>web.xml</code></td><td>Java Servlet 3.1</td></tr>
+          <tr><td><code>persistence.xml</code></td><td>JPA 2.2</td></tr>
+          <tr><td><code>spring-*.xml</code></td><td>Spring Beans 4.3</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-wrap">
+        <div class="code-label">
+          <span>typescript</span>
+          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+        </div>
+        <pre class="language-typescript"><code>const pom = service.parseXMLDocument("file:///project/pom.xml", text);
+service.doComplete(pom, position, "pom.xml"); // modelVersion, parent, groupId, ...</code></pre>
+      </div>
+
+      <p>Add your own associations. They take priority over the built-in ones, except for <code>pom.xml</code>.</p>
+
+      <div class="code-wrap">
+        <div class="code-label">
+          <span>typescript</span>
+          <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
+        </div>
+        <pre class="language-typescript"><code>service.addUserAssociation({
+  pattern: "**/*.config.xml",
+  xsdPath: "/absolute/path/to/config.xsd",
+  isBuiltIn: false,
+});</code></pre>
+      </div>
+
+      <div class="note">
+        <strong>Remote schemas.</strong>
+        <code>resolveSchemaForDocumentAsync()</code> downloads an XSD from an
+        <code>http://</code> or <code>https://</code> <code>systemId</code> and caches it in
+        <code>.cache/xml-schemas/</code> under the current working directory.
+        Files it pulls in with <code>xs:include</code> or <code>xs:import</code> are not downloaded.
+      </div>
     </section>
 
     <section class="doc-section" data-section="printer">
@@ -215,8 +325,13 @@ const diagnostics = await service.validate("file:///schema.xsd", document);</cod
           <button class="copy-btn" title="Copy" aria-label="Copy code"></button>
         </div>
         <pre class="language-typescript"><code>console.log(service.printTreeAST(document));
-console.log(service.printAST(document));
-console.log(service.printCST(document));</code></pre>
+// Document
+// └── catalog
+//     └── book
+
+console.log(service.printAST(document));                     // elements and attributes
+console.log(service.printAST(document, { format: "json" }));
+console.log(service.printCST(document));                     // every grammar rule and token</code></pre>
       </div>
     </section>
 
@@ -245,6 +360,10 @@ console.log(service.printCST(document));</code></pre>
           <tr>
             <td>XML language server based on this</td>
             <td><a href="https://github.com/harshanacz/xml-language-server" target="_blank" rel="noreferrer">github.com/harshanacz/xml-language-server</a></td>
+          </tr>
+          <tr>
+            <td>VS Code extension</td>
+            <td><a href="https://github.com/harshanacz/xml-language-client" target="_blank" rel="noreferrer">github.com/harshanacz/xml-language-client</a></td>
           </tr>
         </tbody>
       </table>

@@ -1,11 +1,6 @@
 <h1 align="center">XML Language Service</h1>
 
-<p align="center"><strong>No Java dependency, Pure TypeScript (XSD validation powered by Xerces WASM).</strong></p>
-
-<p align="center">
-  <strong>Language server powered by this package:</strong>
-  <a href="https://github.com/harshanacz/xml-language-server">xml-language-server</a>
-</p>
+<p align="center"><strong>Editor features and XSD validation for XML, in JavaScript and TypeScript. No Java, no native install.</strong></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/xml-language-service">
@@ -14,28 +9,35 @@
   <a href="https://www.npmjs.com/package/xml-language-service">
     <img src="https://img.shields.io/npm/dm/xml-language-service?logo=npm&label=downloads" alt="npm downloads" />
   </a>
-  <a href="https://github.com/harshanacz/xml-language-service/blob/main/LICENSE">
+  <a href="https://github.com/harshanacz/xml-language-service/actions/workflows/ci.yml">
+    <img src="https://github.com/harshanacz/xml-language-service/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+  <a href="https://github.com/harshanacz/xml-language-service/blob/main/LICENSE.md">
     <img src="https://img.shields.io/npm/l/xml-language-service" alt="license" />
   </a>
   <img src="https://img.shields.io/node/v/xml-language-service" alt="node version" />
-  <a href="https://deepwiki.com/harshanacz/xml-language-service">
-    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
-  </a>
 </p>
 
-This tool helps you work with XML in JavaScript and TypeScript projects. It can understand XML even if it has errors, and it gives features like auto complete, hover info, formatting, renaming tags, finding definitions, and validating with XSD. You can use it in editors, language servers, CLI tools, web apps, or tests.. without needing Java or installing native software.
+`xml-language-service` gives you the building blocks of an XML editor (completion, hover, outline, folding, formatting, rename, go to definition, references and validation) as plain functions that return plain objects. Use it in a language server, an editor plugin, a CLI, a web app or a test suite.
 
-![Architecture Overview](docs/images/archi.png)
+- **Works on broken XML.** The parser is fault-tolerant, so half-typed documents still produce a usable tree.
+- **Real XSD validation.** Schemas are checked by Apache Xerces-C++ compiled to WebAssembly and shipped inside the package.
+- **Knows common files.** `pom.xml`, `web.xml`, `persistence.xml` and Spring bean files get schema-aware completion out of the box.
 
-## Links
+Documentation site: **https://harshanacz.github.io/xml-language-service/**
 
-| Resource | URL |
-| --- | --- |
-| npm package | https://www.npmjs.com/package/xml-language-service |
-| Documentation | https://harshanacz.github.io/xml-language-service/ |
-| Repository | https://github.com/harshanacz/xml-language-service |
-| Issues | https://github.com/harshanacz/xml-language-service/issues |
-| Project using this | https://github.com/harshanacz/xml-review-bot-demo |
+## Contents
+
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Validation](#validation)
+- [Schemas](#schemas)
+- [API reference](#api-reference)
+- [Debugging the parser output](#debugging-the-parser-output)
+- [Projects using it](#projects-using-it)
+- [Development](#development)
 
 ## Install
 
@@ -43,14 +45,12 @@ This tool helps you work with XML in JavaScript and TypeScript projects. It can 
 npm install xml-language-service
 ```
 
-Requirements:
-
 - Node.js 18 or newer
-- ESM-compatible project setup
+- ESM only (`import`, not `require`)
 
-The npm package includes the Xerces WASM assets, so consumers do not need to install Java, Xerces, Emscripten, or a native compiler.
+The Xerces WebAssembly file is included in the package, so there is nothing else to install.
 
-## Quick Start
+## Quick start
 
 ```typescript
 import { getLanguageService } from "xml-language-service";
@@ -65,216 +65,259 @@ const xml = `<catalog>
 
 const document = service.parseXMLDocument("file:///catalog.xml", xml);
 
-const completions = service.doComplete(document, { line: 1, character: 4 });
-const hover = service.doHover(document, { line: 2, character: 6 });
-const symbols = service.findDocumentSymbols(document);
-const foldingRanges = service.getFoldingRanges(document);
+service.doComplete(document, { line: 1, character: 4 }); // { items: [catalog, book, title] }
+service.doHover(document, { line: 2, character: 6 });    // markdown for <title>
+service.findDocumentSymbols(document);                     // catalog > book (bk101)
+service.getFoldingRanges(document);                        // lines 0-4 and 1-3
 
-console.log(completions.items);
-console.log(hover);
-console.log(symbols);
-console.log(foldingRanges);
-
-service.dispose();
+await service.dispose();
 ```
 
-## What You Get
+Positions are zero-based `{ line, character }`, the same as the Language Server Protocol.
 
-| Feature | Description |
+## Features
+
+| Feature | What it does |
 | --- | --- |
-| Fault-tolerant parser | Builds a usable partial tree even when the XML is incomplete or malformed. |
-| Completion | Suggests element names, attributes, and closing tags. Can become XSD-aware when a schema is registered. |
-| Hover | Returns contextual information for XML elements, using schema documentation when available. |
-| Document symbols | Produces a hierarchical outline for editor sidebars and navigation views. |
+| Parsing | Builds an element tree even when the XML is incomplete or malformed. |
+| Completion | Suggests element names, attributes and closing tags. Uses the schema when one is associated. |
+| Hover | Shows an element's attributes and children, or its schema documentation when a schema is associated. |
+| Document symbols | Builds a nested outline for sidebars and breadcrumbs. |
 | Folding | Finds multi-line elements and comments that can be collapsed. |
-| Formatting | Returns text edits for consistent XML indentation and spacing. |
-| Rename | Renames matching opening and closing tags together. |
-| Definition | Jumps between matching opening and closing tags. |
-| References | Finds elements with the same tag name in the document. |
-| XSD validation | Reports syntax and schema diagnostics through Xerces-C++ WASM. |
-| AST/CST printer | Prints parser output as a tree or JSON for debugging and snapshot tests. |
+| Formatting | Re-indents the document and keeps its line endings. |
+| Rename | Renames an opening tag and its matching closing tag together. |
+| Definition | Jumps between an opening tag and its closing tag. |
+| References | Finds every element with the same tag name. |
+| Validation | Reports syntax errors (including mismatched tags and undefined entities) and XSD errors. |
+| Printers | Prints the parsed tree as text or JSON for debugging and snapshot tests. |
 
-## Public API
+## How it works
 
-The main entry point is `getLanguageService()`.
+```mermaid
+flowchart TD
+    xml["XML text"] --> parser["Fault-tolerant parser<br/>(@xml-tools/parser)"]
+    parser --> doc["XMLDocument<br/>element tree + syntax errors"]
+    doc --> features["Completion · Hover · Symbols · Folding<br/>Formatting · Rename · Definition · References"]
 
-```typescript
-import { getLanguageService } from "xml-language-service";
+    hints["File name · root xmlns · systemId"] --> associator["Schema associator<br/>your associations → built-in catalog<br/>→ download cache → network (async only)"]
+    associator --> xsd["XSD"]
+    xsd -- "element and attribute data" --> features
 
-const service = getLanguageService();
+    xsd -- "registerSchema()" --> xerces["Xerces-C++ (WebAssembly)"]
+    xml --> xerces
+    xerces --> diagnostics["Diagnostics"]
+    doc -- "no schema registered" --> diagnostics
 ```
 
-Common service methods:
+- Every feature works from the parsed `XMLDocument`. A schema is optional and only adds information.
+- Validation with a schema runs Xerces over the raw text in one streaming pass, so errors before a fatal syntax error are still reported.
+- Without a schema, `validate()` returns the parser's own syntax errors.
 
-| Method | Purpose |
-| --- | --- |
-| `parseXMLDocument(uri, text)` | Parse XML text into an `XMLDocument`. |
-| `doComplete(document, position, fileName?, documentPath?)` | Get completion items. |
-| `doHover(document, position, fileName?, documentPath?)` | Get hover content. |
-| `findDocumentSymbols(document)` | Get a nested document symbol tree. |
-| `getFoldingRanges(document)` | Get folding ranges. |
-| `format(document, options?)` | Get formatting text edits. |
-| `doRename(document, position, newName)` | Rename an element tag pair. |
-| `doDefinition(document, position)` | Find the matching tag definition. |
-| `findReferences(document, position)` | Find same-name element references. |
-| `registerSchema(schema)` | Register an XSD schema or schema bundle. |
-| `validate(schemaUri, document)` | Validate a parsed document against a registered schema. |
-| `addUserAssociation(association)` | Associate schemas with file names, paths, or namespaces. |
-| `printTreeAST(document)` | Print the AST as a visual text tree (`├──`, `└──`). |
-| `printAST(document, options?)` | Print the parsed AST for debugging. |
-| `printCST(document, options?)` | Print the raw CST for debugging. |
-| `dispose()` | Release schema provider resources. |
+## Validation
 
-The package also exports core types such as `XMLDocument`, `XMLNode`, `XMLAttribute`, `Position`, `Range`, `Diagnostic`, `SchemaBundle`, `CompletionItem`, `HoverResult`, `DocumentSymbol`, `FoldingRange`, and `TextEdit`.
+### Without a schema
 
-## XSD Validation
-
-XSD validation is handled by Apache Xerces-C++ compiled to WebAssembly. Xerces uses a SAX streaming parser, so parsing and schema validation happen in the same pass.
-
-```text
-raw XML text
-    |
-    v
-Xerces SAX stream
-    |
-    +-- syntax diagnostics
-    +-- XSD diagnostics
-```
-
-This matters because diagnostics can still be reported for the part of the document Xerces was able to read before a fatal syntax error.
-
-### Register A Single XSD
+`validate()` still checks that the document is well-formed when no schema is registered under the given URI:
 
 ```typescript
-const service = getLanguageService();
+const document = service.parseXMLDocument("file:///a.xml", "<a><b></a>");
+const diagnostics = await service.validate("file:///a.xml", document);
+// [{ message: "expected end of tag 'b' but found 'a'", severity: "error", source: "syntax", range: ... }, ...]
+```
 
+### With an XSD
+
+Register the schema once, then validate any number of documents against it:
+
+```typescript
 await service.registerSchema({
-  uri: "file:///schema.xsd",
-  xsdText: xsdContent,
+  uri: "file:///catalog.xsd",
+  xsdText: catalogXsd,
 });
 
 const document = service.parseXMLDocument("file:///catalog.xml", xmlText);
-const diagnostics = await service.validate("file:///schema.xsd", document);
+const diagnostics = await service.validate("file:///catalog.xsd", document);
 ```
 
-### Register A Schema Bundle
+Each diagnostic looks like this:
 
-Use a `SchemaBundle` when the root schema references other files with `xs:include` or `xs:import`. The `imports` keys should match the `schemaLocation` values used inside the XSD.
+```typescript
+{
+  range: { start: { line, character }, end: { line, character } },
+  message: string,
+  severity: "error" | "warning" | "info",
+  source: "xsd" | "syntax",
+}
+```
+
+### Schemas split across files
+
+If the root XSD uses `xs:include` or `xs:import`, pass the other files in `imports`. The keys must match the `schemaLocation` values used in the XSD.
 
 ```typescript
 await service.registerSchema({
   uri: "file:///root.xsd",
-  xsdText: rootXsdContent,
+  xsdText: rootXsd,
   imports: {
-    "types.xsd": typesXsdContent,
-    "common.xsd": commonXsdContent,
+    "types.xsd": typesXsd,
+    "common.xsd": commonXsd,
   },
 });
 ```
 
-### Built-In Schemas
+## Schemas
 
-The service ships with built-in schemas for common XML files and can associate them automatically by filename or namespace.
+Completion and hover look up a schema for the document when you pass its `fileName` (and optionally its full `documentPath`). The lookup order is:
 
-| File | Schema |
-| --- | --- |
-| `pom.xml` | Maven 4.0.0 |
-| `web.xml` | Java Servlet 3.1 |
+1. Your associations, added with `addUserAssociation()`
+2. The built-in catalog, matched by file name or the root element's `xmlns`
+3. With `resolveSchemaForDocumentAsync()` and a `systemId` URL only: the download cache, then the network
 
-You can register additional associations with `addUserAssociation()`.
+### Built-in schemas
 
-## Debugging AST And CST Output
+| File | Namespace | Schema |
+| --- | --- | --- |
+| `pom.xml` | `http://maven.apache.org/POM/4.0.0` | Maven 4.0.0 |
+| `web.xml` | `http://xmlns.jcp.org/xml/ns/javaee` | Java Servlet 3.1 |
+| `persistence.xml` | `http://xmlns.jcp.org/xml/ns/persistence` | JPA 2.2 |
+| `spring-*.xml` | `http://www.springframework.org/schema/beans` | Spring Beans 4.3 |
 
-Three functions let you inspect parser output, create snapshot tests, or understand the tree structure of any XML document.
+The list lives in [`resources/schemas/catalog.json`](resources/schemas/catalog.json). See [`resources/schemas/README.md`](resources/schemas/README.md) for where each schema comes from and how to add one.
 
 ```typescript
-import { getLanguageService } from "xml-language-service";
+const pom = service.parseXMLDocument("file:///project/pom.xml", text);
+service.doComplete(pom, position, "pom.xml"); // modelVersion, parent, groupId, ...
+```
 
-const service = getLanguageService();
+### Your own associations
+
+```typescript
+service.addUserAssociation({
+  pattern: "**/*.config.xml",
+  xsdPath: "/absolute/path/to/config.xsd",
+  isBuiltIn: false,
+});
+
+service.resolveSchemaForDocument("app.config.xml");
+// { xsdText, xsdPath, source: "custom" }
+```
+
+Your associations take priority over the built-in catalog. The one exception is `pom.xml`, which always uses the bundled Maven schema.
+
+### Remote schemas
+
+`resolveSchemaForDocumentAsync()` can fetch a schema that is not available locally. When `systemId` is an `http://` or `https://` URL, the XSD is downloaded once and cached in `.cache/xml-schemas/` under the current working directory.
+
+```typescript
+const schema = await service.resolveSchemaForDocumentAsync(
+  "config.xml",
+  undefined,
+  undefined,
+  "https://example.com/schemas/config.xsd",
+);
+// schema?.source is "network" the first time and "cache" afterwards
+```
+
+Only the root XSD is downloaded. Files it pulls in with `xs:include` or `xs:import` are not.
+
+## API reference
+
+Create a service with `getLanguageService()`. It holds compiled schemas, so call `dispose()` when you are done.
+
+**Editor features**
+
+| Method | Returns |
+| --- | --- |
+| `parseXMLDocument(uri, text)` | `XMLDocument` |
+| `doComplete(document, position, fileName?, documentPath?)` | `CompletionList` |
+| `doHover(document, position, fileName?, documentPath?)` | `HoverResult \| null` |
+| `findDocumentSymbols(document)` | `DocumentSymbol[]` |
+| `getFoldingRanges(document)` | `FoldingRange[]` |
+| `format(document, { tabSize?, insertSpaces? }?)` | `TextEdit[]` |
+| `doRename(document, position, newName)` | `TextEdit[] \| null` |
+| `doDefinition(document, position)` | `DefinitionResult \| null` |
+| `findReferences(document, position)` | `ReferenceResult[]` |
+
+**Validation and schemas**
+
+| Method | Returns |
+| --- | --- |
+| `registerSchema({ uri, xsdText, xsdPath?, imports? })` | `Promise<void>` |
+| `validate(schemaUri, document)` | `Promise<Diagnostic[]>` |
+| `hasSchema(uri)` | `boolean` |
+| `resolveSchemaForDocument(fileName, xmlns?, documentPath?)` | `ResolvedSchema \| null` |
+| `resolveSchemaForDocumentAsync(fileName, xmlns?, documentPath?, systemId?)` | `Promise<ResolvedSchema \| null>` |
+| `addUserAssociation(association)` | `void` |
+| `clearUserAssociations()` | `void` |
+| `invalidateAutoSchemas()` | `Promise<void>`. Drops schemas registered under `auto://` URIs so they are reloaded. |
+| `dispose()` | `Promise<void>` |
+
+**Debugging**
+
+| Method | Returns |
+| --- | --- |
+| `printTreeAST(document)` | `string` |
+| `printAST(document, options?)` | `string` |
+| `printCST(document, options?)` | `string` |
+
+All result types (`XMLDocument`, `Position`, `Range`, `Diagnostic`, `CompletionItem`, `HoverResult`, `DocumentSymbol`, `FoldingRange`, `TextEdit` and more) are exported from the package.
+
+## Debugging the parser output
+
+```typescript
 const document = service.parseXMLDocument(
   "file:///catalog.xml",
   `<catalog><book id="bk101"/></catalog>`,
 );
 
-// Visual text tree — quick structural overview
 console.log(service.printTreeAST(document));
 // Document
 // └── catalog
 //     └── book
 
-// Full AST — includes attributes, text and comment nodes
 console.log(service.printAST(document));
-console.log(service.printAST(document, { includePositions: true }));
-console.log(service.printAST(document, { format: "json" }));
+// Document
+//   Element <catalog>
+//     Element <book>
+//       Attribute id="bk101"
 
-// Raw CST — every grammar rule and token produced by the parser
-console.log(service.printCST(document));
+console.log(service.printAST(document, { format: "json", includePositions: true }));
+console.log(service.printCST(document)); // every grammar rule and token from the parser
 ```
 
-`printAST` and `printCST` accept these options:
-
-| Option | Type | Default |
+| Option (`printAST`, `printCST`) | Type | Default |
 | --- | --- | --- |
 | `format` | `"tree" \| "json"` | `"tree"` |
 | `indent` | `number` | `2` |
 | `includePositions` | `boolean` | `false` |
 | `includeTokens` | `boolean` | `true` |
 
-### Manual Debug Script
-
-A ready-made script at `tests/utils/manual.mjs` exercises all three printers against a sample XML document. Run it directly with Node — no test runner needed:
+To try all three printers on a sample document:
 
 ```bash
 npm run build
 node tests/utils/manual.mjs
 ```
 
-## Architecture
+## Projects using it
 
-```text
-TextDocument
-    |
-    v
-@xml-tools/parser
-    |
-    v
-XMLDocument
-    |
-    +-- completion
-    +-- hover
-    +-- symbols
-    +-- folding
-    +-- formatting
-    +-- rename
-    +-- definition
-    +-- references
-    |
-    v
-SchemaProvider
-    |
-    v
-Xerces-C++ WASM
-```
+- [xml-language-server](https://github.com/harshanacz/xml-language-server): a Language Server Protocol server built on this package
+- [xml-language-client](https://github.com/harshanacz/xml-language-client): the VS Code extension for that server
+- [xml-review-bot-demo](https://github.com/harshanacz/xml-review-bot-demo): a demo XML review bot
 
 ## Development
 
 ```bash
 npm install
-npm run build
-npm run build:watch
-npm run test:run
-npm test
+npm run build      # compile TypeScript and copy the schemas into dist/
+npm run test:run   # run the test suite once
+npm test           # run the tests in watch mode
 ```
 
-Useful scripts:
+CI runs the tests on Windows, macOS and Linux with Node.js 20, 22 and 24.
 
-| Script | Description |
-| --- | --- |
-| `npm run build` | Compile TypeScript and copy schema/WASM assets into `dist`. |
-| `npm run build:watch` | Compile TypeScript in watch mode. |
-| `npm run test:run` | Run the Vitest suite once. |
-| `npm test` | Run Vitest in watch mode. |
+Found a bug or want a feature? [Open an issue](https://github.com/harshanacz/xml-language-service/issues).
 
 ## License
 
-MIT
+[MIT](LICENSE.md)

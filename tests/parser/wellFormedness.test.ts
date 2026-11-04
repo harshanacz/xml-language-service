@@ -58,3 +58,48 @@ describe("entity references", () => {
     expect(errorsOf(xml).filter((e) => e.message.includes("entity"))).toEqual([]);
   });
 });
+
+describe("well-formedness edge cases", () => {
+  it("does not flag entity-like text inside CDATA", () => {
+    expect(errorsOf("<root><![CDATA[&foo; </wrong>]]></root>")).toEqual([]);
+  });
+
+  it("does not flag entity-like text inside comments", () => {
+    expect(errorsOf("<root><!-- &foo; </wrong> --></root>")).toEqual([]);
+  });
+
+  it("reports every mismatch in a document", () => {
+    const errors = errorsOf("<root><a></x><b></y></root>");
+    expect(errors.filter((e) => e.message.startsWith("expected end of tag"))).toHaveLength(2);
+  });
+
+  it("reports mismatches in deeply nested elements", () => {
+    const errors = errorsOf("<a><b><c><d></e></c></b></a>");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe("expected end of tag 'd' but found 'e'");
+  });
+
+  it("reports entities on the right line in multi-line documents", () => {
+    const errors = errorsOf("<root>\n  <a>ok</a>\n  <b>&nope;</b>\n</root>");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ line: 2, character: 5 });
+  });
+
+  it("treats entity declarations with single quotes and parameter entities correctly", () => {
+    const xml = "<!DOCTYPE root [<!ENTITY a 'x'><!ENTITY % p 'y'>]>\n<root>&a;&p;</root>";
+    const entityErrors = errorsOf(xml).filter((e) => e.message.startsWith("entity"));
+    expect(entityErrors.map((e) => e.message)).toEqual(["entity 'p' not found"]);
+  });
+
+  it("accepts mixed content with correct nesting", () => {
+    expect(errorsOf("<p>text <b>bold <i>it</i></b> more</p>")).toEqual([]);
+  });
+
+  it("does not report anything for an empty element pair", () => {
+    expect(errorsOf("<root></root>")).toEqual([]);
+  });
+
+  it("accepts attributes whose values contain angle-bracket-like text", () => {
+    expect(errorsOf(`<root a="1 &lt; 2" b='x'/>`)).toEqual([]);
+  });
+});

@@ -1,5 +1,6 @@
 import { XMLDocument } from "../parser/xmlNode.js";
 import { Position, positionToOffset } from "../utils/positionUtils.js";
+import type { XsdCompletionProvider } from "../schema/xsdCompletionProvider.js";
 
 /** A single completion suggestion returned to the editor. */
 export interface CompletionItem {
@@ -23,7 +24,7 @@ export interface CompletionList {
 export function doComplete(
   document: XMLDocument,
   position: Position,
-  schemaProvider?: any
+  schemaProvider?: XsdCompletionProvider | null
 ): CompletionList {
   const offset = positionToOffset(document.text, position);
   const textBefore = document.text.substring(0, offset);
@@ -41,7 +42,7 @@ export function doComplete(
   }
 
   // Context: cursor is right after '<' or '<' + partial tag name (no space yet)
-  if (/<\w*$/.test(textBefore)) {
+  if (/<[\w:.-]*$/.test(textBefore)) {
     if (schemaProvider?.hasData()) {
       const node = document.findNodeAt(offset);
 
@@ -75,7 +76,7 @@ export function doComplete(
       }
 
       return {
-        items: names.map((name: string) => ({
+        items: names.map((name) => ({
           label: name,
           kind: "element" as const,
           insertText: `${name}>$0</${name}>`,
@@ -100,14 +101,14 @@ export function doComplete(
   }
 
   // Context: cursor is inside an open tag (attribute position).
-  // Use lastIndexOf('<') so this fires even after completed attribute values like
-  // '<log level="full" |' where the old \w+\s+\w*$ regex would miss the quote boundary.
+  // Use lastIndexOf('<') so this also fires after completed attribute values,
+  // e.g. '<log level="full" |'.
   const lastOpenAngle = textBefore.lastIndexOf("<");
   if (lastOpenAngle !== -1) {
     const fragment = textBefore.slice(lastOpenAngle);
     // Confirm: not a close tag, and the `<` hasn't been closed yet.
     if (!fragment.startsWith("</") && !fragment.includes(">")) {
-      const tagMatch = /^<([\w:]+)/.exec(fragment);
+      const tagMatch = /^<([\w:.-]+)/.exec(fragment);
       if (tagMatch && fragment.length > tagMatch[0].length) {
         const afterTagName = fragment.slice(tagMatch[0].length);
         // Only enter attribute context when there is at least one space after the tag name.
@@ -115,8 +116,8 @@ export function doComplete(
           const tagName = tagMatch[1];
 
           if (schemaProvider?.hasData()) {
-            const schemaAttrs: any[] = schemaProvider.getAttributes(tagName) ?? [];
-            const schemaAttrNames = new Set<string>(schemaAttrs.map((a: any) => a.name));
+            const schemaAttrs = schemaProvider.getAttributes(tagName);
+            const schemaAttrNames = new Set(schemaAttrs.map((a) => a.name));
 
             const docAttrs = new Set<string>();
             document.traverse((n) => {
@@ -130,7 +131,7 @@ export function doComplete(
 
             return {
               items: [
-                ...schemaAttrs.map((attr: any) => ({
+                ...schemaAttrs.map((attr) => ({
                   label: attr.name,
                   kind: "attribute" as const,
                   insertText: `${attr.name}="$0"`,

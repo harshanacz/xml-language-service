@@ -1,6 +1,7 @@
 import { XMLDocument } from "../parser/xmlNode.js";
 import { Position, positionToOffset } from "../utils/positionUtils.js";
 import { Range, offsetsToRange } from "../utils/rangeUtils.js";
+import { findCloseTagStart } from "../utils/tagUtils.js";
 
 /** The URI and range of a definition target, compatible with the LSP Location type. */
 export interface DefinitionResult {
@@ -22,17 +23,15 @@ export function doDefinition(
 
   if (!node || node.type !== "element" || !node.name || node.isSelfClosing) return null;
 
-  // If cursor is within the opening tag span, navigate to the closing tag
-  const openTagEnd = node.startOffset + node.name.length + 1;
-  const isOnOpenTag = offset <= openTagEnd;
+  const closeIdx = findCloseTagStart(document.text, node);
+  if (closeIdx === -1) return null;
 
-  if (isOnOpenTag) {
-    const closePattern = "</" + node.name;
-    const closeIdx = document.text.indexOf(closePattern, node.startOffset + 1);
-    if (closeIdx === -1) return null;
+  // Cursor on the opening tag name: navigate to the closing tag
+  const openTagEnd = node.startOffset + node.name.length + 1;
+  if (offset <= openTagEnd) {
     return {
       uri: document.uri,
-      range: offsetsToRange(document.text, closeIdx, closeIdx + closePattern.length + 1),
+      range: offsetsToRange(document.text, closeIdx, closeIdx + node.name.length + 3),
     };
   }
 

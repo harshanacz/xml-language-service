@@ -116,14 +116,16 @@ function buildSymbols(nodes: XMLNode[], text: string): DocumentSymbol[] {
   return symbols;
 }
 
-function getSymbolName(node: XMLNode): string {
-  const identifier = node.attributes.find((attr) =>
-    ["name", "id", "key"].includes(attr.name)
-  )?.value;
+const IDENTIFIER_ATTRIBUTES = ["name", "id", "key"];
 
-  return identifier != null && identifier !== ""
-    ? `${node.name} (${identifier})`
-    : node.name ?? "";
+/** Returns the value of the first non-empty name/id/key attribute, if any. */
+function getIdentifier(node: XMLNode): string | undefined {
+  return node.attributes.find((attr) => IDENTIFIER_ATTRIBUTES.includes(attr.name) && attr.value)?.value;
+}
+
+function getSymbolName(node: XMLNode): string {
+  const identifier = getIdentifier(node);
+  return identifier ? `${node.name} (${identifier})` : node.name ?? "";
 }
 
 function getSymbolKind(node: XMLNode): DocumentSymbolKind {
@@ -137,16 +139,7 @@ function getSymbolKind(node: XMLNode): DocumentSymbolKind {
   if (name === "args") return "array";
   if (name === "format") return "struct";
   if (MEDIATOR_ELEMENTS.has(name)) return "function";
-  if (ARTIFACT_ELEMENTS.has(name) && hasIdentifier(node)) return "class";
+  if (ARTIFACT_ELEMENTS.has(name) && getIdentifier(node)) return "class";
 
   return node.children.length > 0 ? "object" : "field";
-}
-
-function hasIdentifier(node: XMLNode): boolean {
-  return node.attributes.some(
-    (attr) =>
-      ["name", "id", "key"].includes(attr.name) &&
-      attr.value != null &&
-      attr.value !== ""
-  );
 }

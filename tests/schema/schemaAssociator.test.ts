@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 // Absolute path to a real bundled XSD file, used for user-association tests
 const mavenXsdPath = path.resolve(
   __dirname,
-  "../../src/schema/resources/default/maven-4.0.0.xsd"
+  "../../resources/schemas/build/maven-4.0.0.xsd"
 );
 
 describe("SchemaAssociator", () => {

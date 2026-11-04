@@ -15,20 +15,23 @@ export interface FoldingRange {
 export function getFoldingRanges(document: XMLDocument): FoldingRange[] {
   const result: FoldingRange[] = [];
   collectRanges(document.children, document.text, result);
+  collectCommentRanges(document.text, result);
   return result;
+}
+
+// Comments are not part of the element tree, so they are located in the raw text.
+function collectCommentRanges(text: string, result: FoldingRange[]): void {
+  for (const m of text.matchAll(/<!--[\s\S]*?-->/g)) {
+    const startLine = offsetToPosition(text, m.index!).line;
+    const endLine = offsetToPosition(text, m.index! + m[0].length).line;
+    if (startLine < endLine) {
+      result.push({ startLine, endLine, kind: "comment" });
+    }
+  }
 }
 
 function collectRanges(nodes: XMLNode[], text: string, result: FoldingRange[]): void {
   for (const node of nodes) {
-    if (node.type === "comment") {
-      const startLine = offsetToPosition(text, node.startOffset).line;
-      const endLine = offsetToPosition(text, node.endOffset).line;
-      if (startLine < endLine) {
-        result.push({ startLine, endLine, kind: "comment" });
-      }
-      continue;
-    }
-
     if (node.type !== "element" || node.isSelfClosing) continue;
     const startLine = offsetToPosition(text, node.startOffset).line;
     const endLine = offsetToPosition(text, node.endOffset).line;

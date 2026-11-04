@@ -1,4 +1,5 @@
 import { XMLDocument, XMLNode } from "../parser/xmlNode.js";
+import { findCloseTagStart } from "../utils/tagUtils.js";
 
 /** Options controlling how the formatter re-indents the document. */
 export interface FormatterOptions {
@@ -26,9 +27,11 @@ export function format(document: XMLDocument, options?: FormatterOptions): TextE
   const insertSpaces = options?.insertSpaces ?? true;
   const unit = insertSpaces ? " ".repeat(tabSize) : "\t";
 
+  const eol = document.text.includes("\r\n") ? "\r\n" : "\n";
+  const trailing = /\r?\n$/.test(document.text) ? eol : "";
   const output = formatTopLevel(document, unit);
 
-  return [{ startOffset: 0, endOffset: document.text.length, newText: output.join("\n") }];
+  return [{ startOffset: 0, endOffset: document.text.length, newText: output.join(eol) + trailing }];
 }
 
 function formatTopLevel(document: XMLDocument, unit: string): string[] {
@@ -197,8 +200,7 @@ function findOpeningTagEnd(text: string, startOffset: number): number {
 }
 
 function findClosingTagStart(text: string, node: XMLNode, openTagEnd: number): number {
-  if (!node.name) return -1;
-  const closeTagStart = text.lastIndexOf(`</${node.name}`, node.endOffset - 1);
+  const closeTagStart = findCloseTagStart(text, node);
   return closeTagStart > openTagEnd ? closeTagStart : -1;
 }
 

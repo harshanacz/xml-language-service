@@ -63,7 +63,7 @@ export class XMLDocumentImpl implements XMLDocument {
           line: startLine,
           character: startCol,
           endLine: Math.max(startLine, endLine),
-          endCharacter: Math.max(startCol + 1, endCol),
+          endCharacter: endLine > startLine ? endCol : Math.max(startCol + 1, endCol),
         };
       }),
       ...collectWellFormednessErrors(cst, text),

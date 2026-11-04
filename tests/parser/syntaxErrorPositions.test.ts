@@ -51,4 +51,10 @@ describe("syntax error positions", () => {
     const [error] = parseXMLDocument("file:///t.xml", "<root>\n  <child>\n").syntaxErrors;
     expect(error.line).toBeGreaterThanOrEqual(1);
   });
+
+  it("ends a multi-line token's range at the token's own end column", () => {
+    // The unexpected token is the string "x\ny", which ends after `y"` on line 1.
+    const [error] = parseXMLDocument("file:///t.xml", '<a "x\ny"/>').syntaxErrors;
+    expect(error).toMatchObject({ line: 0, character: 3, endLine: 1, endCharacter: 2 });
+  });
 });

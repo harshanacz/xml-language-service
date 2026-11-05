@@ -32,9 +32,11 @@ export interface ResolvedSchema {
 
 // Bundled schemas live in <package>/resources/schemas. This module sits at
 // dist/schema/ after a build and at src/schema/ when run from source (tests).
-function resolveSchemasRoot(): string {
-  const dir = path.dirname(fileURLToPath(import.meta.url));
+// When it is bundled into a single file (the language server, the VS Code
+// extension), `dir` is the bundle's folder and the schemas are copied beside it.
+export function resolveSchemasRoot(dir = path.dirname(fileURLToPath(import.meta.url))): string {
   const candidates = [
+    path.join(dir, "resources", "schemas"),
     path.join(dir, "..", "resources", "schemas"),
     path.join(dir, "..", "..", "resources", "schemas"),
   ];

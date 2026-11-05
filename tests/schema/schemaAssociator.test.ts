@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
-import { SchemaAssociator } from "../../src/schema/schemaAssociator.js";
+import { SchemaAssociator, resolveSchemasRoot } from "../../src/schema/schemaAssociator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,5 +90,36 @@ describe("SchemaAssociator", () => {
     expect(assoc.findSchema("custom.xml")).not.toBeNull();
     assoc.clearUserAssociations();
     expect(assoc.findSchema("custom.xml")).toBeNull();
+  });
+});
+
+describe("resolveSchemasRoot", () => {
+  const withLayout = (dirs: string[], run: (root: string) => void) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "schemas-root-"));
+    try {
+      for (const d of dirs) fs.mkdirSync(path.join(root, d), { recursive: true });
+      run(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("finds schemas copied beside a single-file bundle", () => {
+    // Layout of the bundled language server and the packaged extension
+    withLayout(["server/resources/schemas"], (root) => {
+      expect(resolveSchemasRoot(path.join(root, "server"))).toBe(path.join(root, "server", "resources", "schemas"));
+    });
+  });
+
+  it("finds the package's schemas from dist/schema", () => {
+    withLayout(["pkg/dist/schema", "pkg/dist/resources/schemas"], (root) => {
+      expect(resolveSchemasRoot(path.join(root, "pkg", "dist", "schema"))).toBe(path.join(root, "pkg", "dist", "resources", "schemas"));
+    });
+  });
+
+  it("finds the repository's schemas from src/schema", () => {
+    withLayout(["repo/src/schema", "repo/resources/schemas"], (root) => {
+      expect(resolveSchemasRoot(path.join(root, "repo", "src", "schema"))).toBe(path.join(root, "repo", "resources", "schemas"));
+    });
   });
 });

@@ -1,5 +1,4 @@
-> <img src="https://raw.githubusercontent.com/harshanacz/xml-language-client/main/images/icon.png" alt="Schema-Aware XML" width="48" align="left"> **Schema-Aware XML** (0.1.0, preview) is available on the Visual Studio Code Marketplace.<br>
-> JVM-free XML language support with schema-aware validation and completion, built on this package. [View it on the Marketplace](https://marketplace.visualstudio.com/items?itemName=harshanacz.xml-language-client)
+[![Schema-Aware XML (0.1.0, preview) on the Visual Studio Code Marketplace](images/marketplace-banner.png)](https://marketplace.visualstudio.com/items?itemName=harshanacz.xml-language-client)
 
 <h1 align="center">XML Language Service</h1>
 

@@ -114,10 +114,44 @@ describe("schema resolution", () => {
     expect(s.resolveSchemaForDocument("web.xml")?.source).toBe("builtin");
   });
 
-  it("always uses the built-in Maven schema for pom.xml, even with a user association", () => {
+  it("keeps the built-in Maven schema for pom.xml under a broad user association", () => {
     const s = create();
     s.addUserAssociation({ pattern: "**/*.xml", xsdPath: tempXsd(), isBuiltIn: false });
     expect(s.resolveSchemaForDocument("pom.xml")?.source).toBe("builtin");
+  });
+
+  it("lets a user association that names pom.xml override the built-in Maven schema", () => {
+    const s = create();
+    const xsdPath = tempXsd();
+    s.addUserAssociation({ pattern: "pom.xml", xsdPath, isBuiltIn: false });
+    const resolved = s.resolveSchemaForDocument("pom.xml");
+    expect(resolved?.source).toBe("custom");
+    expect(resolved?.xsdPath).toBe(xsdPath);
+  });
+
+  it("lets a **/pom.xml association override the Maven schema for a nested POM", () => {
+    const s = create();
+    const xsdPath = tempXsd();
+    s.addUserAssociation({ pattern: "**/pom.xml", xsdPath, isBuiltIn: false });
+    const resolved = s.resolveSchemaForDocument("pom.xml", undefined, "/proj/module-a/pom.xml");
+    expect(resolved?.source).toBe("custom");
+    expect(resolved?.xsdPath).toBe(xsdPath);
+  });
+
+  it("prefers a pom.xml association over a broad one registered before it", () => {
+    const s = create();
+    const broad = tempXsd();
+    const pom = tempXsd();
+    s.addUserAssociation({ pattern: "**/*.xml", xsdPath: broad, isBuiltIn: false });
+    s.addUserAssociation({ pattern: "pom.xml", xsdPath: pom, isBuiltIn: false });
+    expect(s.resolveSchemaForDocument("pom.xml")?.xsdPath).toBe(pom);
+  });
+
+  it("async resolution honours a pom.xml user association", async () => {
+    const s = create();
+    const xsdPath = tempXsd();
+    s.addUserAssociation({ pattern: "pom.xml", xsdPath, isBuiltIn: false });
+    expect((await s.resolveSchemaForDocumentAsync("pom.xml"))?.source).toBe("custom");
   });
 
   it("matches user glob patterns against the full document path", () => {

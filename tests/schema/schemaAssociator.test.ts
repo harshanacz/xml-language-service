@@ -65,7 +65,7 @@ describe("SchemaAssociator", () => {
       isBuiltIn: false,
     });
     const result = assoc.findSchema("pom.xml");
-    expect(result?.source).toBe("builtin"); // pom.xml hardcoded guard short-circuits to pom.xml built-in
+    expect(result?.source).toBe("custom"); // a pattern naming pom.xml itself overrides the Maven guard (#91)
   });
 
   it("wildcard pattern **/*.xml matches bare filename without documentPath", () => {

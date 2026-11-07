@@ -204,7 +204,7 @@ service.resolveSchemaForDocument("app.config.xml");
 // { xsdText, xsdPath, source: "custom" }
 ```
 
-Your associations take priority over the built-in catalog. The one exception is `pom.xml`, which always uses the bundled Maven schema.
+Your associations take priority over the built-in catalog. The one exception is `pom.xml`: a broad pattern such as `**/*.xml` does not replace the bundled Maven schema, but an association whose pattern names `pom.xml` itself (`pom.xml`, `**/pom.xml`) does.
 
 ### Remote schemas
 

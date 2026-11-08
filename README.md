@@ -1,5 +1,7 @@
 [![Schema-Aware XML (0.1.0, preview) on the Visual Studio Code Marketplace](images/marketplace-banner.png)](https://marketplace.visualstudio.com/items?itemName=harshanacz.xml-language-client)
 
+<sub>Also on [Open VSX](https://open-vsx.org/extension/harshanacz/xml-language-client), for Google Antigravity, VSCodium and other VS Code forks.</sub>
+
 <h1 align="center">XML Language Service</h1>
 
 <p align="center"><strong>Editor features and XSD validation for XML, in JavaScript and TypeScript. No Java, no native install.</strong></p>

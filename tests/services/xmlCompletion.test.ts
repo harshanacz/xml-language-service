@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
 import { doComplete } from "../../src/services/xmlCompletion.js";
 import { XsdCompletionProvider } from "../../src/schema/xsdCompletionProvider.js";
+import { offsetToPosition } from "../../src/utils/positionUtils.js";
 
 // ─── Document-tree fallback (no schema) ──────────────────────────────────────
 // line 0: <root><child/></root>
@@ -173,5 +174,35 @@ describe("doComplete — fallback attribute completions (no schema)", () => {
     const result = doComplete(doc, { line: 0, character: 9 });
     const labels = result.items.map((i) => i.label);
     expect(labels.some((l) => l.startsWith("xml"))).toBe(true);
+  });
+});
+
+describe("doComplete — inside comments", () => {
+  const provider = new XsdCompletionProvider(xsd);
+  const at = (text: string, marker: string) => offsetToPosition(text, text.indexOf(marker) + marker.length);
+
+  it.each([
+    ["after '<'", "<project><!-- see <", "<!-- see <"],
+    ["after '</'", "<project><!-- see </", "<!-- see </"],
+    ["after an element name and a space", "<project><!-- <groupId ", "<!-- <groupId "],
+    ["in plain comment text", "<project><!-- note", "<!-- note"],
+  ])("returns no items %s", (_label, prefix, marker) => {
+    const text = `${prefix} --><groupId/></project>`;
+    const doc = parseXMLDocument(uri, text);
+    expect(doComplete(doc, at(text, marker), provider).items).toEqual([]);
+    expect(doComplete(doc, at(text, marker)).items).toEqual([]);
+  });
+
+  it("returns no items in a comment before the root element", () => {
+    const text = "<!-- todo < -->\n<project/>";
+    const doc = parseXMLDocument(uri, text);
+    expect(doComplete(doc, at(text, "todo <"), provider).items).toEqual([]);
+  });
+
+  it("still completes right after a comment ends", () => {
+    const text = "<project><!-- note --><</project>";
+    const doc = parseXMLDocument(uri, text);
+    const labels = doComplete(doc, at(text, "--><"), provider).items.map((i) => i.label);
+    expect(labels).toContain("groupId");
   });
 });

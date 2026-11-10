@@ -29,6 +29,9 @@ export function doComplete(
   const offset = positionToOffset(document.text, position);
   const textBefore = document.text.substring(0, offset);
 
+  // Nothing to complete inside a comment: '<' there is comment text, not a tag.
+  if (document.findNodeAt(offset)?.type === "comment") return { items: [], isIncomplete: false };
+
   // Context: cursor is right after '</'
   if (/<\/$/.test(textBefore)) {
     const node = document.findNodeAt(offset);

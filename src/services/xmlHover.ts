@@ -13,7 +13,8 @@ export interface HoverResult {
  * Returns hover information for the XML node at the given document position.
  * Uses schema data to provide richer documentation when available, otherwise
  * falls back to structural information from the document tree.
- * Returns null when the position is not inside an element.
+ * Inside a comment it returns the comment text. Returns null when the position is
+ * not inside an element or a comment.
  */
 export function doHover(
   document: XMLDocument,
@@ -22,6 +23,13 @@ export function doHover(
 ): HoverResult | null {
   const offset = positionToOffset(document.text, position);
   const node = document.findNodeAt(offset);
+
+  if (node?.type === "comment") {
+    return {
+      contents: `### Comment\n${node.name ?? ""}`,
+      range: offsetsToRange(document.text, node.startOffset, node.endOffset),
+    };
+  }
 
   if (!node || node.type !== "element") return null;
 

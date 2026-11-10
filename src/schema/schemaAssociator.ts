@@ -45,6 +45,11 @@ export function resolveSchemasRoot(dir = path.dirname(fileURLToPath(import.meta.
 
 const SCHEMAS_ROOT = resolveSchemasRoot();
 
+/** True when a pattern's last path segment is exactly `pom.xml`, i.e. it targets POM files rather than XML files in general. */
+function namesPomXml(pattern: string): boolean {
+  return pattern.split(/[\\/]/).pop() === "pom.xml";
+}
+
 export class SchemaAssociator {
   private userAssociations: SchemaAssociation[];
   private catalog: CatalogConfig | null = null;
@@ -89,9 +94,18 @@ export class SchemaAssociator {
    * 3. Runtime cache of downloaded schemas (<cwd>/.cache/xml-schemas/)
    */
   findSchema(fileName: string, xmlns?: string, documentPath?: string, systemId?: string): ResolvedSchema | null {
-    // 0. pom.xml always uses the bundled Maven schema so that broad user
-    //    associations (e.g. "**/*.xml") cannot shadow it.
+    // 0. pom.xml uses the bundled Maven schema so that broad user associations
+    //    (e.g. "**/*.xml") cannot shadow it. An association whose pattern names
+    //    pom.xml itself (e.g. "pom.xml", "**/pom.xml") overrides it.
     if (fileName === "pom.xml" || fileName.endsWith("/pom.xml") || fileName.endsWith("\\pom.xml")) {
+      const pomAssoc = this.userAssociations.find(
+        (assoc) => namesPomXml(assoc.pattern) && this.matchesPattern(fileName, assoc.pattern, documentPath)
+      );
+      if (pomAssoc) {
+        const xsdText = this.readXsdFile(pomAssoc.xsdPath);
+        if (xsdText === null) return null;
+        return { xsdText, xsdPath: pomAssoc.xsdPath, source: "custom" };
+      }
       const mavenPomPath = path.join(SCHEMAS_ROOT, "build", "maven-4.0.0.xsd");
       const xsdText = this.readXsdFile(mavenPomPath);
       if (xsdText) return { xsdText, xsdPath: mavenPomPath, source: "builtin" };

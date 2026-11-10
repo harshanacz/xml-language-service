@@ -23,6 +23,9 @@ export class XMLDocumentImpl implements XMLDocument {
   name: undefined = undefined;
   syntaxErrors: SyntaxError[];
   readonly rawCST: unknown;
+  // Keep cursor lookup comment-aware without changing the element-only child
+  // lists used by formatting, symbols, and structural completion.
+  private commentNodes: XMLNode[] = [];
 
   constructor(uri: string, text: string, cst: any, lexErrors: any[] = [], parseErrors: any[] = []) {
     this.uri = uri;
@@ -71,6 +74,9 @@ export class XMLDocumentImpl implements XMLDocument {
   }
 
   private buildTree(cst: any): XMLNode[] {
+    for (const misc of cst?.children?.misc ?? []) {
+      this.addComments(misc.children?.Comment ?? [], this);
+    }
     const elements: any[] = cst?.children?.element ?? [];
     return elements.map((element) => this.buildNode(element, this));
   }
@@ -93,10 +99,30 @@ export class XMLDocumentImpl implements XMLDocument {
     };
 
     // Child elements are nested inside content[0].children.element[]
-    const contentElements = element?.children?.content?.[0]?.children?.element ?? [];
+    const content = element?.children?.content?.[0]?.children;
+    this.addComments(content?.Comment ?? [], node);
+    const contentElements = content?.element ?? [];
     node.children = contentElements.map((child: any) => this.buildNode(child, node));
 
     return node;
+  }
+
+  private addComments(
+    tokens: { image: string; startOffset: number; endOffset: number }[],
+    parent: XMLNode
+  ): void {
+    for (const token of tokens) {
+      this.commentNodes.push({
+        type: "comment",
+        name: token.image.slice(4, -3),
+        attributes: [],
+        children: [],
+        startOffset: token.startOffset,
+        endOffset: token.endOffset + 1,
+        parent,
+        isSelfClosing: false,
+      });
+    }
   }
 
   private buildAttributes(attrs: any[]): XMLAttribute[] {
@@ -119,6 +145,10 @@ export class XMLDocumentImpl implements XMLDocument {
   }
 
   findNodeAt(offset: number): XMLNode {
+    const comment = this.commentNodes.find(
+      (node) => offset >= node.startOffset && offset < node.endOffset
+    );
+    if (comment) return comment;
     return this.findDeepest(this, offset);
   }
 

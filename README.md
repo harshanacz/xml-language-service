@@ -38,6 +38,7 @@ Documentation site: **https://harshanacz.github.io/xml-language-service/**
 - [How it works](#how-it-works)
 - [Validation](#validation)
 - [Schemas](#schemas)
+- [Browsers and web workers](#browsers-and-web-workers)
 - [API reference](#api-reference)
 - [Debugging the parser output](#debugging-the-parser-output)
 - [Projects using it](#projects-using-it)
@@ -53,6 +54,8 @@ npm install xml-language-service
 - ESM only (`import`, not `require`)
 
 The Xerces WebAssembly file is included in the package, so there is nothing else to install.
+
+The package also has an entry for browsers and web workers. See [Browsers and web workers](#browsers-and-web-workers).
 
 ## Quick start
 
@@ -223,6 +226,43 @@ const schema = await service.resolveSchemaForDocumentAsync(
 ```
 
 Only the root XSD is downloaded. Files it pulls in with `xs:include` or `xs:import` are not.
+
+## Browsers and web workers
+
+On Node the service reads schemas from disk: the built-in catalog, the XSD files of your associations and the download cache. A browser has no disk, so there the service reads them from a **schema host** that you fill in.
+
+A bundler that targets the browser picks the browser entry on its own, through the `browser` condition in `package.json`. You can also import it by name:
+
+```typescript
+import { getLanguageService, createMemorySchemaHost } from "xml-language-service/browser";
+
+const host = createMemorySchemaHost({
+  files: {
+    // The built-in catalog and its schemas, if you want them. They are in the
+    // package under dist/resources/schemas; load them however your bundle can.
+    "/schemas/catalog.json": catalogText,
+    "/schemas/build/maven-4.0.0.xsd": mavenXsdText,
+  },
+});
+
+const service = getLanguageService({ schemaHost: host });
+```
+
+- **Built-in schemas.** The host starts empty. The catalog is read when the service is created, so put `catalog.json` and the schemas it lists under the host's `schemasRoot` (`/schemas` by default) first.
+- **Your own associations.** `xsdPath` is a key in the host. Write the file with `host.writeFile(path, text)` before or after `addUserAssociation()`. It is read on each lookup, so writing it again updates it, and `host.deleteFile(path)` removes it.
+- **Remote schemas.** `resolveSchemaForDocumentAsync()` downloads with `fetch` and keeps the result in the host under `cacheDir` (`/cache` by default). The browser's cross-origin rules apply to the download.
+- **Validation.** Parsing, completion, hover and the other editor features have no Node dependency. XSD validation runs in [xerces-wasm](https://github.com/harshanacz/xerces-wasm-validator), whose entry imports Node's `fs/promises`, so a browser bundle currently has to handle that import and load the `.wasm` file itself.
+
+The browser entry exports everything the Node entry does except `createNodeSchemaHost`.
+
+### Schema hosts
+
+| Function | Reads from |
+| --- | --- |
+| `createNodeSchemaHost({ schemasRoot?, cacheDir? }?)` | The local disk. The default on Node. `cacheDir` defaults to `.cache/xml-schemas/` under the current working directory. |
+| `createMemorySchemaHost({ schemasRoot?, cacheDir?, files? }?)` | Memory. The default in the browser entry. Also useful in tests. |
+
+Pass either one, or your own object that implements the `SchemaHost` interface, as `getLanguageService({ schemaHost })`.
 
 ## API reference
 

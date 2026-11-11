@@ -46,3 +46,4 @@ export class SchemaProvider extends HostedSchemaProvider {
 // Schema file access
 export { SchemaHost } from "./schema/schemaHost.js";
 export { createNodeSchemaHost, NodeSchemaHostOptions } from "./schema/nodeSchemaHost.js";
+export { createMemorySchemaHost, MemorySchemaHost, MemorySchemaHostOptions } from "./schema/memorySchemaHost.js";

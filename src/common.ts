@@ -1,0 +1,31 @@
+// Everything the Node entry (index.ts) and the browser entry (browser.ts) both
+// export. Nothing reachable from here may import a Node built-in.
+
+export { LanguageService, LanguageServiceOptions } from "./xmlLanguageService.js";
+
+// Core AST types
+export { XMLDocument, XMLNode, XMLAttribute } from "./parser/xmlNode.js";
+
+// Utility types
+export { Position } from "./utils/positionUtils.js";
+export { Range } from "./utils/rangeUtils.js";
+
+// Service types
+export { CompletionList, CompletionItem } from "./services/xmlCompletion.js";
+export { HoverResult } from "./services/xmlHover.js";
+export { DocumentSymbol } from "./services/xmlSymbols.js";
+export { FoldingRange } from "./services/xmlFolding.js";
+export { TextEdit, FormatterOptions } from "./services/xmlFormatter.js";
+export { DefinitionResult } from "./services/xmlDefinition.js";
+export { ReferenceResult } from "./services/xmlReferences.js";
+
+// Debug / inspection utilities
+export { printAST, printCST, printTreeAST, PrintOptions, PrintFormat } from "./utils/xmlPrinter.js";
+
+// Schema validation types
+export { Diagnostic, SchemaBundle, XsdInput, XmlInput, XsdValidatorService } from "./schema/xsdValidator.js";
+export { SchemaInfo, ResolvedSchema, SchemaAssociation } from "./schema/schemaProvider.js";
+
+// Schema file access
+export { SchemaHost } from "./schema/schemaHost.js";
+export { createMemorySchemaHost, MemorySchemaHost, MemorySchemaHostOptions } from "./schema/memorySchemaHost.js";

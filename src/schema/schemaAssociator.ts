@@ -88,8 +88,9 @@ export class SchemaAssociator {
         if (xsdText === null) return null;
         return { xsdText, xsdPath: pomAssoc.xsdPath, source: "custom" };
       }
+      // A host without the bundled schemas (an empty memory host) has no Maven schema to read.
       const mavenPomPath = this.host.join(this.host.schemasRoot, "build", "maven-4.0.0.xsd");
-      const xsdText = this.readXsdFile(mavenPomPath);
+      const xsdText = this.host.exists(mavenPomPath) ? this.readXsdFile(mavenPomPath) : null;
       if (xsdText) return { xsdText, xsdPath: mavenPomPath, source: "builtin" };
     }
 

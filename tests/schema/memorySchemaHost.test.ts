@@ -105,6 +105,13 @@ describe("SchemaAssociator on a memory host", () => {
     expect(assoc.findSchema("pom.xml")).toBeNull();
   });
 
+  it("does not warn about the Maven schema when the host does not hold it", () => {
+    const assoc = new SchemaAssociator(createMemorySchemaHost());
+    expect(assoc.findSchema("pom.xml")).toBeNull();
+    expect(assoc.findSchema("pom.xml", undefined, "/ws/module/pom.xml")).toBeNull();
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
   it("ignores a catalog that is not valid JSON", () => {
     const assoc = new SchemaAssociator(createMemorySchemaHost({ files: { "/schemas/catalog.json": "{not json" } }));
     expect(assoc.findSchema("note.xml")).toBeNull();

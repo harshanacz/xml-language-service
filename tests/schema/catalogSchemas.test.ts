@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
-import { SchemaProvider } from "../../src/schema/schemaProvider.js";
+import { SchemaProvider } from "../../src/index.js";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
 
 const SCHEMAS_ROOT = path.join(process.cwd(), "resources", "schemas");

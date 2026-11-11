@@ -3,7 +3,8 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
-import { SchemaAssociator, resolveSchemasRoot } from "../../src/schema/schemaAssociator.js";
+import { SchemaAssociator } from "../../src/schema/schemaAssociator.js";
+import { createNodeSchemaHost, resolveSchemasRoot } from "../../src/schema/nodeSchemaHost.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,37 +17,37 @@ const mavenXsdPath = path.resolve(
 
 describe("SchemaAssociator", () => {
   it("creates without throwing", () => {
-    expect(() => new SchemaAssociator()).not.toThrow();
+    expect(() => new SchemaAssociator(createNodeSchemaHost())).not.toThrow();
   });
 
   it("findSchema('pom.xml') returns a non-null ResolvedSchema", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     expect(assoc.findSchema("pom.xml")).not.toBeNull();
   });
 
   it("findSchema('pom.xml').source === 'builtin'", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     expect(assoc.findSchema("pom.xml")?.source).toBe("builtin");
   });
 
   it("findSchema('pom.xml') returns non-empty xsdText", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     const result = assoc.findSchema("pom.xml");
     expect(result?.xsdText.length).toBeGreaterThan(0);
   });
 
   it("findSchema('web.xml') returns a non-null ResolvedSchema", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     expect(assoc.findSchema("web.xml")).not.toBeNull();
   });
 
   it("findSchema('unknown.xml') returns null", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     expect(assoc.findSchema("unknown.xml")).toBeNull();
   });
 
   it("addUserAssociation with pattern 'custom.xml' makes findSchema return source 'custom'", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     assoc.addUserAssociation({
       pattern: "custom.xml",
       xsdPath: mavenXsdPath,
@@ -58,7 +59,7 @@ describe("SchemaAssociator", () => {
   });
 
   it("user association overrides built-in for the same filename", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     assoc.addUserAssociation({
       pattern: "pom.xml",
       xsdPath: mavenXsdPath,
@@ -69,7 +70,7 @@ describe("SchemaAssociator", () => {
   });
 
   it("wildcard pattern **/*.xml matches bare filename without documentPath", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     assoc.addUserAssociation({
       pattern: "**/*.custom",
       xsdPath: mavenXsdPath,
@@ -81,7 +82,7 @@ describe("SchemaAssociator", () => {
   });
 
   it("clearUserAssociations resets added user associations", () => {
-    const assoc = new SchemaAssociator();
+    const assoc = new SchemaAssociator(createNodeSchemaHost());
     assoc.addUserAssociation({
       pattern: "custom.xml",
       xsdPath: mavenXsdPath,

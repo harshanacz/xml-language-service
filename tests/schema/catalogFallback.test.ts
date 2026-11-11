@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { SchemaAssociator } from "../../src/schema/schemaAssociator.js";
+import { createNodeSchemaHost } from "../../src/schema/nodeSchemaHost.js";
 
 describe("SchemaAssociator Catalog and Fallback Resolution", () => {
-  const assoc = new SchemaAssociator();
+  const assoc = new SchemaAssociator(createNodeSchemaHost());
 
   it("resolves maven pom.xml from catalog", () => {
     const result = assoc.findSchema("pom.xml");

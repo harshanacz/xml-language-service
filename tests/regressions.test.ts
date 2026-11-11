@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getLanguageService } from "../src/index.js";
+import { getLanguageService, SchemaProvider } from "../src/index.js";
 import { parseXMLDocument } from "../src/parser/xmlParser.js";
-import { SchemaProvider } from "../src/schema/schemaProvider.js";
 
 const ls = getLanguageService();
 

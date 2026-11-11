@@ -26,15 +26,20 @@ export type XsdInput = XercesXsdInput;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Buffer is a Node global; a browser has none, and nothing there can be a Buffer.
+function isBuffer(value: unknown): value is Buffer {
+  return typeof Buffer !== "undefined" && Buffer.isBuffer(value);
+}
+
 async function toText(input: XmlInput): Promise<string> {
   if (typeof input === "string") return input;
-  if (Buffer.isBuffer(input)) return input.toString("utf8");
+  if (isBuffer(input)) return input.toString("utf8");
   if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
   throw new TypeError("Unsupported input type");
 }
 
 function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
-  return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
+  return typeof xsd === "object" && !isBuffer(xsd) && "entry" in xsd;
 }
 
 // Xerces reports the column at the closing '>' of the problematic tag.

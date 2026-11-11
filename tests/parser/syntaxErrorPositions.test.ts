@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
-import { getLanguageService } from "../../src/xmlLanguageService.js";
+import { getLanguageService } from "../../src/index.js";
 
 // Malformed inputs covering lexer errors, parser errors at EOF, and well-formedness errors.
 const brokenInputs: Record<string, string> = {

@@ -3,7 +3,7 @@ import { readFile, readdir } from "fs/promises";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { XsdValidatorService, SchemaBundle } from "../../src/schema/xsdValidator.js";
-import { SchemaProvider } from "../../src/schema/schemaProvider.js";
+import { SchemaProvider } from "../../src/index.js";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

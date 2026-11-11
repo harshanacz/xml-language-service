@@ -13,9 +13,16 @@ import { findReferences, ReferenceResult } from "./services/xmlReferences.js";
 import { SchemaProvider, SchemaInfo, SchemaAssociation, ResolvedSchema } from "./schema/schemaProvider.js";
 import { Diagnostic } from "./schema/xsdValidator.js";
 import { getRootNamespace } from "./utils/tagUtils.js";
+import type { SchemaHost } from "./schema/schemaHost.js";
 
-export function getLanguageService() {
-  const schemaProvider = new SchemaProvider();
+export interface LanguageServiceOptions {
+  /** File access for schemas. Defaults to the local disk. */
+  schemaHost?: SchemaHost;
+}
+
+/** Creates a language service that finds and reads schemas through `schemaHost`. */
+export function createLanguageService(schemaHost: SchemaHost) {
+  const schemaProvider = new SchemaProvider(schemaHost);
 
   return {
     // ── XML core ─────────────────────────────────────────────────────────────
@@ -120,3 +127,5 @@ export function getLanguageService() {
     },
   };
 }
+
+export type LanguageService = ReturnType<typeof createLanguageService>;

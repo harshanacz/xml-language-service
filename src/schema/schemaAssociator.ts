@@ -1,6 +1,4 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import type { SchemaHost } from "./schemaHost.js";
 
 export interface SchemaAssociation {
   pattern: string;     // glob-like: 'pom.xml' or '**/*.xml'
@@ -30,21 +28,6 @@ export interface ResolvedSchema {
   source: "builtin" | "custom" | "cache" | "network";
 }
 
-// Bundled schemas live in <package>/resources/schemas. This module sits at
-// dist/schema/ after a build and at src/schema/ when run from source (tests).
-// When it is bundled into a single file (the language server, the VS Code
-// extension), `dir` is the bundle's folder and the schemas are copied beside it.
-export function resolveSchemasRoot(dir = path.dirname(fileURLToPath(import.meta.url))): string {
-  const candidates = [
-    path.join(dir, "resources", "schemas"),
-    path.join(dir, "..", "resources", "schemas"),
-    path.join(dir, "..", "..", "resources", "schemas"),
-  ];
-  return candidates.find((p) => fs.existsSync(p)) ?? candidates[0];
-}
-
-const SCHEMAS_ROOT = resolveSchemasRoot();
-
 /** True when a pattern's last path segment is exactly `pom.xml`, i.e. it targets POM files rather than XML files in general. */
 function namesPomXml(pattern: string): boolean {
   return pattern.split(/[\\/]/).pop() === "pom.xml";
@@ -53,19 +36,18 @@ function namesPomXml(pattern: string): boolean {
 export class SchemaAssociator {
   private userAssociations: SchemaAssociation[];
   private catalog: CatalogConfig | null = null;
-  private runtimeCacheDir: string;
 
-  constructor() {
+  /** `host` supplies the file access: the bundled catalog and schemas, user XSD files and the download cache. */
+  constructor(private readonly host: SchemaHost) {
     this.userAssociations = [];
-    this.runtimeCacheDir = path.join(process.cwd(), ".cache", "xml-schemas");
     this.loadCatalog();
   }
 
   private loadCatalog(): void {
-    const catalogPath = path.join(SCHEMAS_ROOT, "catalog.json");
-    if (fs.existsSync(catalogPath)) {
+    const catalogPath = this.host.join(this.host.schemasRoot, "catalog.json");
+    if (this.host.exists(catalogPath)) {
       try {
-        const raw = fs.readFileSync(catalogPath, "utf-8");
+        const raw = this.host.readFile(catalogPath);
         this.catalog = JSON.parse(raw);
       } catch (err) {
         console.warn(`Failed to parse catalog.json at "${catalogPath}": ${(err as Error).message}`);
@@ -91,7 +73,7 @@ export class SchemaAssociator {
    * Priority:
    * 1. User associations (pattern match)
    * 2. Catalog associations (pattern / namespace / systemId match from resources/schemas/catalog.json)
-   * 3. Runtime cache of downloaded schemas (<cwd>/.cache/xml-schemas/)
+   * 3. Runtime cache of downloaded schemas (the host's cacheDir)
    */
   findSchema(fileName: string, xmlns?: string, documentPath?: string, systemId?: string): ResolvedSchema | null {
     // 0. pom.xml uses the bundled Maven schema so that broad user associations
@@ -106,7 +88,7 @@ export class SchemaAssociator {
         if (xsdText === null) return null;
         return { xsdText, xsdPath: pomAssoc.xsdPath, source: "custom" };
       }
-      const mavenPomPath = path.join(SCHEMAS_ROOT, "build", "maven-4.0.0.xsd");
+      const mavenPomPath = this.host.join(this.host.schemasRoot, "build", "maven-4.0.0.xsd");
       const xsdText = this.readXsdFile(mavenPomPath);
       if (xsdText) return { xsdText, xsdPath: mavenPomPath, source: "builtin" };
     }
@@ -128,7 +110,7 @@ export class SchemaAssociator {
         const matchesSysId = systemId !== undefined && entry.systemIds ? entry.systemIds.includes(systemId) : false;
 
         if (matchesPattern || matchesNs || matchesSysId) {
-          const fullPath = path.join(SCHEMAS_ROOT, entry.path);
+          const fullPath = this.host.join(this.host.schemasRoot, entry.path);
           const xsdText = this.readXsdFile(fullPath);
           if (xsdText) return { xsdText, xsdPath: fullPath, source: "builtin" };
         }
@@ -138,7 +120,7 @@ export class SchemaAssociator {
     // 3. Runtime cache of previously downloaded schemas
     if (systemId && (systemId.startsWith("http://") || systemId.startsWith("https://"))) {
       const cachedPath = this.getCachePathForUrl(systemId);
-      if (fs.existsSync(cachedPath)) {
+      if (this.host.exists(cachedPath)) {
         const xsdText = this.readXsdFile(cachedPath);
         if (xsdText) return { xsdText, xsdPath: cachedPath, source: "cache" };
       }
@@ -149,7 +131,7 @@ export class SchemaAssociator {
 
   /**
    * Async fallback for remote schemas when not found locally.
-   * Downloads remote XSD URL, saves it to local runtime cache, and returns ResolvedSchema.
+   * Downloads remote XSD URL, saves it to the host's cache, and returns ResolvedSchema.
    */
   async findSchemaAsync(fileName: string, xmlns?: string, documentPath?: string, systemId?: string): Promise<ResolvedSchema | null> {
     const local = this.findSchema(fileName, xmlns, documentPath, systemId);
@@ -161,8 +143,7 @@ export class SchemaAssociator {
         if (response.ok) {
           const xsdText = await response.text();
           const cachedPath = this.getCachePathForUrl(systemId);
-          fs.mkdirSync(path.dirname(cachedPath), { recursive: true });
-          fs.writeFileSync(cachedPath, xsdText, "utf-8");
+          this.host.writeFile(cachedPath, xsdText);
           return { xsdText, xsdPath: cachedPath, source: "network" };
         }
       } catch (err) {
@@ -175,7 +156,7 @@ export class SchemaAssociator {
 
   private getCachePathForUrl(url: string): string {
     const sanitized = url.replace(/[^a-zA-Z0-9]/g, "_");
-    return path.join(this.runtimeCacheDir, `${sanitized}.xsd`);
+    return this.host.join(this.host.cacheDir, `${sanitized}.xsd`);
   }
 
   private matchesPattern(fileName: string, pattern: string, documentPath?: string): boolean {
@@ -211,7 +192,7 @@ export class SchemaAssociator {
 
   private readXsdFile(xsdPath: string): string | null {
     try {
-      return fs.readFileSync(xsdPath, "utf-8");
+      return this.host.readFile(xsdPath);
     } catch (err) {
       console.warn(`Schema file not found at "${xsdPath}": ${(err as Error).message}`);
       return null;

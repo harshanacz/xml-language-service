@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { SchemaProvider } from "../../src/schema/schemaProvider.js";
+import { SchemaProvider } from "../../src/index.js";
 import { parseXMLDocument } from "../../src/parser/xmlParser.js";
 
 const simpleXsd = `<?xml version="1.0"?>

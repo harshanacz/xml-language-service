@@ -2,6 +2,7 @@ import { XsdValidatorService, Diagnostic, XsdInput, SchemaBundle } from "./xsdVa
 import { XMLDocument } from "../parser/xmlNode.js";
 import { XsdCompletionProvider } from "./xsdCompletionProvider.js";
 import { SchemaAssociator, SchemaAssociation, ResolvedSchema } from "./schemaAssociator.js";
+import type { SchemaHost } from "./schemaHost.js";
 
 // Resolves a relative schemaLocation against a current file's path (both relative to
 // the entry schema's directory).  Handles ../ and ./ segments via standard URI resolution.
@@ -69,7 +70,12 @@ export class SchemaProvider {
   private completionProviders = new Map<string, XsdCompletionProvider>();
   // resolved xsdPath → completion provider built from an associated schema file
   private resolvedProviders = new Map<string, XsdCompletionProvider>();
-  private associator = new SchemaAssociator();
+  private associator: SchemaAssociator;
+
+  /** `host` supplies the file access used to find schemas for documents. */
+  constructor(host: SchemaHost) {
+    this.associator = new SchemaAssociator(host);
+  }
 
   /**
    * Compiles the given XSD (if not already compiled for the same xsdPath) and

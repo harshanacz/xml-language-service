@@ -305,7 +305,7 @@ describe("printTreeAST", () => {
   });
 
   it("exposes printTreeAST via getLanguageService()", async () => {
-    const { getLanguageService } = await import("../../src/xmlLanguageService.js");
+    const { getLanguageService } = await import("../../src/index.js");
     const svc = getLanguageService();
     const doc = svc.parseXMLDocument(uri, simpleXML);
     const out = svc.printTreeAST(doc);
@@ -318,7 +318,7 @@ describe("printTreeAST", () => {
 
 describe("language service — printAST / printCST", () => {
   it("exposes printAST via getLanguageService()", async () => {
-    const { getLanguageService } = await import("../../src/xmlLanguageService.js");
+    const { getLanguageService } = await import("../../src/index.js");
     const svc = getLanguageService();
     const doc = svc.parseXMLDocument(uri, simpleXML);
     const out = svc.printAST(doc);
@@ -327,7 +327,7 @@ describe("language service — printAST / printCST", () => {
   });
 
   it("exposes printCST via getLanguageService()", async () => {
-    const { getLanguageService } = await import("../../src/xmlLanguageService.js");
+    const { getLanguageService } = await import("../../src/index.js");
     const svc = getLanguageService();
     const doc = svc.parseXMLDocument(uri, simpleXML);
     const out = svc.printCST(doc);

@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { SchemaAssociator } from "../../src/schema/schemaAssociator.js";
+import { createNodeSchemaHost } from "../../src/schema/nodeSchemaHost.js";
 
 const URL_XSD = "http://schemas.example.test/thing/thing.xsd";
 const XSD = `<?xml version="1.0"?><xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"><xs:element name="thing" type="xs:string"/></xs:schema>`;
@@ -18,8 +19,7 @@ describe("SchemaAssociator remote fallback", () => {
 
   beforeEach(() => {
     cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), "xml-schema-cache-"));
-    assoc = new SchemaAssociator();
-    (assoc as any).runtimeCacheDir = cacheDir;
+    assoc = new SchemaAssociator(createNodeSchemaHost({ cacheDir }));
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -90,7 +90,7 @@ describe("SchemaAssociator remote fallback", () => {
     fetchMock.mockResolvedValue(respond(XSD));
     const blocker = path.join(cacheDir, "blocker");
     fs.writeFileSync(blocker, "x");
-    (assoc as any).runtimeCacheDir = path.join(blocker, "sub");
+    assoc = new SchemaAssociator(createNodeSchemaHost({ cacheDir: path.join(blocker, "sub") }));
     expect(await assoc.findSchemaAsync("thing.xml", undefined, undefined, URL_XSD)).toBeNull();
   });
 });
